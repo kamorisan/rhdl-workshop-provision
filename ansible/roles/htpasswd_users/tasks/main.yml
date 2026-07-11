@@ -1,0 +1,125 @@
+---
+- name: Generate user list
+  ansible.builtin.set_fact:
+    workshop_users: "{{ workshop_users | default([]) + [{'username': workshop.username_prefix + '%02d' | format(item), 'namespace': workshop.username_prefix + '%02d' | format(item) + workshop.namespace_suffix, 'id': '%02d' | format(item)}] }}"
+  loop: "{{ range(1, workshop.user_count + 1) | list }}"
+
+- name: Generate random passwords for users
+  ansible.builtin.set_fact:
+    user_passwords: "{{ user_passwords | default({}) | combine({item.username: lookup('password', '/dev/null length=' + (workshop.password_length | string) + ' chars=ascii_letters,digits')}) }}"
+  loop: "{{ workshop_users }}"
+  when: workshop.password_mode == "generated"
+  no_log: true
+
+- name: Use provided passwords from vault
+  ansible.builtin.set_fact:
+    user_passwords: "{{ vault_workshop_passwords }}"
+  when:
+    - workshop.password_mode == "provided"
+    - vault_workshop_passwords is defined
+  no_log: true
+
+- name: Create temporary htpasswd file directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: htpasswd
+  register: htpasswd_tmpdir
+
+- name: Generate htpasswd entries
+  community.crypto.htpasswd:
+    path: "{{ htpasswd_tmpdir.path }}/workshop-htpasswd"
+    name: "{{ item.username }}"
+    password: "{{ user_passwords[item.username] }}"
+    crypt_scheme: bcrypt
+    create: true
+    mode: '0600'
+  loop: "{{ workshop_users }}"
+  no_log: true
+
+- name: Read htpasswd file content
+  ansible.builtin.slurp:
+    src: "{{ htpasswd_tmpdir.path }}/workshop-htpasswd"
+  register: htpasswd_content
+  no_log: true
+
+- name: Create htpasswd Secret in openshift-config
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: workshop-htpasswd
+        namespace: openshift-config
+      type: Opaque
+      data:
+        htpasswd: "{{ htpasswd_content.content }}"
+  no_log: true
+
+- name: Get current OAuth configuration
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: OAuth
+    name: cluster
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: current_oauth
+
+- name: Extract existing identity providers
+  ansible.builtin.set_fact:
+    existing_idps: "{{ current_oauth.resources[0].spec.identityProviders | default([]) }}"
+
+- name: Remove existing workshop_htpasswd provider if present
+  ansible.builtin.set_fact:
+    filtered_idps: "{{ existing_idps | rejectattr('name', 'equalto', 'workshop_htpasswd') | list }}"
+
+- name: Add workshop htpasswd identity provider
+  ansible.builtin.set_fact:
+    updated_idps: "{{ filtered_idps + [workshop_htpasswd_idp] }}"
+  vars:
+    workshop_htpasswd_idp:
+      name: workshop_htpasswd
+      mappingMethod: claim
+      type: HTPasswd
+      htpasswd:
+        fileData:
+          name: workshop-htpasswd
+
+- name: Update OAuth configuration (preserving existing providers)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: config.openshift.io/v1
+      kind: OAuth
+      metadata:
+        name: cluster
+      spec:
+        identityProviders: "{{ updated_idps }}"
+
+- name: Create artifacts directory
+  ansible.builtin.file:
+    path: "{{ workshop.credentials_output | dirname }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Generate user credentials CSV
+  ansible.builtin.template:
+    src: credentials.csv.j2
+    dest: "{{ workshop.credentials_output }}"
+    mode: '0600'
+  delegate_to: localhost
+  no_log: false
+
+- name: Clean up temporary htpasswd directory
+  ansible.builtin.file:
+    path: "{{ htpasswd_tmpdir.path }}"
+    state: absent
+
+- name: Display user creation summary
+  ansible.builtin.debug:
+    msg:
+      - "Created {{ workshop.user_count }} workshop users"
+      - "User credentials saved to: {{ workshop.credentials_output }}"
+      - "OAuth identity provider 'workshop_htpasswd' configured"

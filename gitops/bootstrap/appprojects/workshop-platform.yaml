@@ -1,0 +1,27 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workshop-platform
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-100"
+spec:
+  description: Workshop Platform (Dev Spaces CR, MTA CR, Solution Server)
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: 'openshift-*'
+      server: https://kubernetes.default.svc
+    - namespace: 'workshop-system'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: 'config.openshift.io'
+      kind: OAuth
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

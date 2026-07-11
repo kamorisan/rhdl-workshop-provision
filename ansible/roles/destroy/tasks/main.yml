@@ -1,0 +1,9 @@
+---
+- name: Include destroy scope tasks
+  ansible.builtin.include_tasks: "{{ destroy_scope }}.yml"
+
+- name: Display destroy completion
+  ansible.builtin.debug:
+    msg:
+      - "Destroy operation completed for scope: {{ destroy_scope }}"
+      - "Check cluster state to verify deletion."

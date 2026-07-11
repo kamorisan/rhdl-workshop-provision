@@ -1,0 +1,105 @@
+---
+- name: Create GitOps repository Secret (if using token auth)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: workshop-gitops-repo
+        namespace: "{{ gitops.instance_namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      type: Opaque
+      stringData:
+        type: git
+        url: "{{ gitops.repo_url }}"
+        username: "{{ vault_gitops_repo_username | default('git') }}"
+        password: "{{ vault_gitops_repo_token }}"
+  when:
+    - gitops.auth_type == "token"
+    - vault_gitops_repo_token is defined
+  no_log: true
+
+- name: Create AppProjects
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: "{{ item.name }}"
+        namespace: "{{ gitops.instance_namespace }}"
+      spec:
+        description: "{{ item.description }}"
+        sourceRepos:
+          - "{{ gitops.repo_url }}"
+          - "*"  # Allow other repos for Helm charts
+        destinations:
+          - namespace: "*"
+            server: https://kubernetes.default.svc
+        clusterResourceWhitelist:
+          - group: "*"
+            kind: "*"
+        namespaceResourceWhitelist:
+          - group: "*"
+            kind: "*"
+  loop: "{{ appprojects }}"
+
+- name: Create Root Application
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: workshop-root
+        namespace: "{{ gitops.instance_namespace }}"
+        finalizers:
+          - resources-finalizer.argocd.argoproj.io
+      spec:
+        project: default
+        source:
+          repoURL: "{{ gitops.repo_url }}"
+          targetRevision: "{{ gitops.repo_revision }}"
+          path: "{{ gitops.repo_path }}"
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: "{{ gitops.instance_namespace }}"
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+            allowEmpty: true
+          syncOptions:
+            - ServerSideApply=true
+            - PrunePropagationPolicy=foreground
+            - PruneLast=true
+            - RespectIgnoreDifferences=true
+            - ApplyOutOfSyncOnly=true
+
+- name: Wait for Root Application to sync
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-root
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: root_app
+  until:
+    - root_app.resources | length > 0
+    - root_app.resources[0].status is defined
+    - root_app.resources[0].status.sync is defined
+    - root_app.resources[0].status.sync.status == "Synced"
+  retries: 30
+  delay: 10
+  ignore_errors: true
+
+- name: Display Root Application status
+  ansible.builtin.debug:
+    msg:
+      - "Root Application: {{ root_app.resources[0].status.sync.status | default('Unknown') }}"
+      - "Health: {{ root_app.resources[0].status.health.status | default('Unknown') }}"

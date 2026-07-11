@@ -1,0 +1,24 @@
+---
+- name: Manage Workshop Users
+  hosts: localhost
+  gather_facts: false
+
+  pre_tasks:
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../artifacts"
+        state: directory
+        mode: '0755'
+      tags: always
+
+  roles:
+    - role: htpasswd_users
+      tags: [users, auth]
+
+  post_tasks:
+    - name: Display user credentials location
+      ansible.builtin.debug:
+        msg:
+          - "User credentials saved to: {{ workshop.credentials_output }}"
+          - "Total users: {{ workshop.user_count }}"
+      tags: always

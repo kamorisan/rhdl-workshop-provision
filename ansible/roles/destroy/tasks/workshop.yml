@@ -1,0 +1,35 @@
+---
+# Destroy scope: workshop
+# Deletes users + workshop-system
+
+- name: Include users destroy tasks
+  ansible.builtin.include_tasks: users.yml
+
+- name: Delete workshop-platform-namespaces Application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-platform-namespaces
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Wait for platform namespaces deletion
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: workshop-system
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: workshop_ns
+  until: workshop_ns.resources | length == 0
+  retries: 30
+  delay: 10
+  ignore_errors: true
+
+- name: Display workshop destroy completion
+  ansible.builtin.debug:
+    msg:
+      - "Workshop resources destroyed:"
+      - "  - User resources"
+      - "  - workshop-system namespace"

@@ -1,0 +1,30 @@
+{
+  "java.home": "/usr/lib/jvm/java-17",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "/usr/lib/jvm/java-17",
+      "default": true
+    }
+  ],
+  "maven.executable.path": "/usr/bin/mvn",
+  "maven.terminal.useJavaHome": true,
+  "mta.cli.executable": "mta-cli",
+  "mta.generativeAI.enabled": true,
+  "mta.solutionServer.enabled": true,
+  "mta.solutionServer.url": "https://mta-solution-server-openshift-mta.apps.example.com",
+  "mta.analysisProfile": "springboot-to-quarkus",
+  "mta.target": "quarkus",
+  "mta.source": "springboot",
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/.mta": false
+  },
+  "editor.formatOnSave": false,
+  "editor.minimap.enabled": true,
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "workbench.colorTheme": "Default Dark+",
+  "extensions.ignoreRecommendations": false
+}

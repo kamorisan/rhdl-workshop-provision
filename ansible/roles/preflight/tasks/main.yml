@@ -1,0 +1,243 @@
+---
+- name: Preflight - OpenShift API Connection
+  kubernetes.core.k8s_cluster_info:
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: cluster_info
+  failed_when: cluster_info is not defined
+
+- name: Preflight - Display cluster info
+  ansible.builtin.debug:
+    msg:
+      - "Cluster version: {{ cluster_info.version.kubernetes }}"
+      - "API URL: {{ cluster_api_url }}"
+
+- name: Preflight - Check cluster-admin permissions
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: default
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: ns_check
+  failed_when: ns_check is not defined or ns_check.resources | length == 0
+
+- name: Preflight - Check if cluster-admin can list ClusterRoles
+  kubernetes.core.k8s_info:
+    api_version: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: clusterrole_check
+  failed_when: clusterrole_check.resources | length == 0
+  ignore_errors: true
+
+- name: Preflight - Fail if not cluster-admin
+  ansible.builtin.fail:
+    msg: "Current user does not have cluster-admin permissions. Cannot list ClusterRoles."
+  when: clusterrole_check is failed
+
+- name: Preflight - Check OpenShift version
+  ansible.builtin.set_fact:
+    openshift_version: "{{ cluster_info.version.kubernetes | regex_replace('^v', '') }}"
+
+- name: Preflight - Validate minimum OpenShift version
+  ansible.builtin.assert:
+    that:
+      - openshift_version is version(minimum_openshift_version, '>=')
+    fail_msg: "OpenShift version {{ openshift_version }} is below minimum {{ minimum_openshift_version }}"
+    success_msg: "OpenShift version {{ openshift_version }} meets minimum requirement"
+
+- name: Preflight - Check OperatorHub availability
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    namespace: openshift-marketplace
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: catalogsources
+  failed_when: catalogsources.resources | length == 0
+
+- name: Preflight - Check for required Operator packages
+  kubernetes.core.k8s_info:
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    name: "{{ item }}"
+    namespace: openshift-marketplace
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ required_operator_packages }}"
+  register: package_check
+  failed_when: package_check.resources | length == 0
+
+- name: Preflight - Check default StorageClass
+  kubernetes.core.k8s_info:
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: storageclasses
+
+- name: Preflight - Find default StorageClass
+  ansible.builtin.set_fact:
+    default_storageclass: "{{ storageclasses.resources | selectattr('metadata.annotations.storageclass.kubernetes.io/is-default-class', 'defined') | selectattr('metadata.annotations.storageclass.kubernetes.io/is-default-class', 'equalto', 'true') | list | first | default({}) }}"
+
+- name: Preflight - Warn if no default StorageClass
+  ansible.builtin.debug:
+    msg: "WARNING: No default StorageClass found. You must specify storage_class_name variable."
+  when: default_storageclass == {}
+
+- name: Preflight - Get cluster Ingress domain
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: Ingress
+    name: cluster
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: ingress_config
+
+- name: Preflight - Set cluster domain
+  ansible.builtin.set_fact:
+    cluster_domain: "{{ ingress_config.resources[0].spec.domain }}"
+  when: ingress_config.resources | length > 0
+
+- name: Preflight - Check for existing GitOps Operator
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: openshift-gitops-operator
+    namespace: openshift-operators
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: existing_gitops_sub
+
+- name: Preflight - Display existing GitOps status
+  ansible.builtin.debug:
+    msg: "OpenShift GitOps Operator is already installed."
+  when: existing_gitops_sub.resources | length > 0
+
+- name: Preflight - Check for existing Dev Spaces Operator
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    namespace: "{{ devspaces.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: existing_devspaces_sub
+
+- name: Preflight - Warn if Dev Spaces already exists
+  ansible.builtin.debug:
+    msg: "WARNING: Dev Spaces Operator is already installed in {{ devspaces.operator_namespace }}. GitOps will manage it."
+  when: existing_devspaces_sub.resources | length > 0
+
+- name: Preflight - Check for existing MTA Operator
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    namespace: "{{ mta.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: existing_mta_sub
+
+- name: Preflight - Warn if MTA already exists
+  ansible.builtin.debug:
+    msg: "WARNING: MTA Operator is already installed in {{ mta.operator_namespace }}. GitOps will manage it."
+  when: existing_mta_sub.resources | length > 0
+
+- name: Preflight - Check for conflicting user namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ workshop.username_prefix }}{{ '%02d' | format(item) }}{{ workshop.namespace_suffix }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ range(1, workshop.user_count + 1) | list }}"
+  register: conflicting_namespaces
+  when: workshop.user_count > 0
+
+- name: Preflight - Warn about existing user namespaces
+  ansible.builtin.debug:
+    msg: "WARNING: Namespace {{ item.item }} already exists. It will be managed by GitOps."
+  loop: "{{ conflicting_namespaces.results | default([]) }}"
+  when:
+    - item.resources is defined
+    - item.resources | length > 0
+
+- name: Preflight - Check for existing OAuth configuration
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: OAuth
+    name: cluster
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: existing_oauth
+
+- name: Preflight - Display existing OAuth identity providers
+  ansible.builtin.debug:
+    msg: "Existing identity providers: {{ existing_oauth.resources[0].spec.identityProviders | default([]) | map(attribute='name') | list }}"
+  when: existing_oauth.resources | length > 0
+
+- name: Preflight - Estimate required capacity
+  ansible.builtin.set_fact:
+    estimated_cpu: "{{ (workshop.user_count * per_user_cpu + platform_cpu) | int }}"
+    estimated_memory: "{{ (workshop.user_count * per_user_memory + platform_memory) | int }}"
+    estimated_storage: "{{ (workshop.user_count * per_user_storage + platform_storage) | int }}"
+
+- name: Preflight - Display capacity estimation
+  ansible.builtin.debug:
+    msg:
+      - "Estimated resource requirements for {{ workshop.user_count }} users:"
+      - "  CPU: ~{{ estimated_cpu }} cores"
+      - "  Memory: ~{{ estimated_memory }} GB"
+      - "  Storage: ~{{ estimated_storage }} GB"
+
+- name: Preflight - Test GitOps repository connectivity
+  ansible.builtin.uri:
+    url: "{{ gitops.repo_url }}"
+    method: HEAD
+    status_code: [200, 301, 302, 401, 403]
+    timeout: 10
+  register: gitops_repo_test
+  when: gitops.repo_url is defined and gitops.repo_url != ""
+  ignore_errors: true
+
+- name: Preflight - Warn if GitOps repo unreachable
+  ansible.builtin.debug:
+    msg: "WARNING: Cannot reach GitOps repository {{ gitops.repo_url }}. Status: {{ gitops_repo_test.status | default('unknown') }}"
+  when:
+    - gitops.repo_url is defined
+    - gitops.repo_url != ""
+    - gitops_repo_test is failed
+
+- name: Preflight - Test demo repository connectivity
+  ansible.builtin.uri:
+    url: "{{ demo_repository_url }}"
+    method: HEAD
+    status_code: [200, 301, 302, 401, 403]
+    timeout: 10
+  register: demo_repo_test
+  ignore_errors: true
+
+- name: Preflight - Warn if demo repo unreachable
+  ansible.builtin.debug:
+    msg: "WARNING: Cannot reach demo repository {{ demo_repository_url }}. Status: {{ demo_repo_test.status | default('unknown') }}"
+  when: demo_repo_test is failed
+
+- name: Preflight - Test LLM endpoint connectivity
+  ansible.builtin.uri:
+    url: "{{ llm.api_base }}"
+    method: GET
+    status_code: [200, 400, 401, 403, 404, 405]
+    timeout: 10
+  register: llm_endpoint_test
+  when: llm.api_base is defined and llm.api_base != ""
+  ignore_errors: true
+
+- name: Preflight - Warn if LLM endpoint unreachable
+  ansible.builtin.debug:
+    msg: "WARNING: Cannot reach LLM endpoint {{ llm.api_base }}. Status: {{ llm_endpoint_test.status | default('unknown') }}"
+  when:
+    - llm.api_base is defined
+    - llm.api_base != ""
+    - llm_endpoint_test is failed
+
+- name: Preflight - Summary
+  ansible.builtin.debug:
+    msg:
+      - "=== Preflight Check Summary ==="
+      - "✓ Cluster API: {{ cluster_api_url }}"
+      - "✓ OpenShift version: {{ openshift_version }}"
+      - "✓ Cluster domain: {{ cluster_domain | default('not detected') }}"
+      - "✓ Default StorageClass: {{ default_storageclass.metadata.name | default('none - must specify') }}"
+      - "✓ OperatorHub available"
+      - "✓ Required Operator packages available"
+      - "✓ Estimated capacity: {{ estimated_cpu }} CPU, {{ estimated_memory }}GB RAM, {{ estimated_storage }}GB storage"
+      - "Ready to proceed with provisioning."

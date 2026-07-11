@@ -1,0 +1,36 @@
+---
+- name: Destroy OpenShift Dev Spaces + Developer Lightspeed Workshop
+  hosts: localhost
+  gather_facts: false
+
+  pre_tasks:
+    - name: Validate destroy confirmation
+      ansible.builtin.assert:
+        that:
+          - confirm_destroy is defined
+          - confirm_destroy | bool
+        fail_msg: "Destroy operation requires confirm_destroy=true"
+      tags: always
+
+    - name: Display destroy scope
+      ansible.builtin.debug:
+        msg:
+          - "=== DESTROY OPERATION ==="
+          - "Scope: {{ destroy_scope }}"
+          - "Cluster: {{ cluster_api_url }}"
+          - ""
+          - "This will delete resources according to the selected scope:"
+          - "  users: User namespaces, workspaces, RBAC"
+          - "  workshop: users + workshop-system"
+          - "  platform: workshop + Dev Spaces + MTA instances"
+          - "  all-gitops-managed: platform + Operators"
+          - "  all: all-gitops-managed + GitOps Operator"
+          - ""
+          - "PVC retention settings:"
+          - "  Solution Server PVC: {{ 'RETAIN' if retain_solution_server_pvc else 'DELETE' }}"
+          - "  Workspace PVCs: {{ 'RETAIN' if retain_workspace_pvc else 'DELETE' }}"
+      tags: always
+
+  roles:
+    - role: destroy
+      tags: [destroy]

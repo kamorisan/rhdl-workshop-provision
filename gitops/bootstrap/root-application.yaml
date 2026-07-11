@@ -1,0 +1,178 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-operators
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-80"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-operators
+  source:
+    repoURL: https://github.com/your-org/workshop-provisioning.git
+    targetRevision: main
+    path: gitops/operators
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
+    syncOptions:
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+      - ApplyOutOfSyncOnly=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-cluster-config
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-50"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-platform
+  source:
+    repoURL: https://github.com/your-org/workshop-provisioning.git
+    targetRevision: main
+    path: gitops/cluster-config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
+    syncOptions:
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-platform-namespaces
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-40"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-platform
+  source:
+    repoURL: https://github.com/your-org/workshop-provisioning.git
+    targetRevision: main
+    path: gitops/platform-namespaces
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
+    syncOptions:
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-platform-instances
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-platform
+  source:
+    repoURL: https://github.com/your-org/workshop-provisioning.git
+    targetRevision: main
+    path: gitops/platform-instances
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
+    syncOptions:
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-namespaces
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-users
+  source:
+    repoURL: https://github.com/your-org/workshop-provisioning.git
+    targetRevision: main
+    path: gitops/workshop/namespaces
+    helm:
+      valueFiles:
+        - ../../config/workshop-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: false  # Controlled by prune_users variable
+      selfHeal: true
+      allowEmpty: true
+    syncOptions:
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-resources
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-users
+  source:
+    repoURL: https://github.com/your-org/workshop-provisioning.git
+    targetRevision: main
+    path: gitops/workshop/resources
+    helm:
+      valueFiles:
+        - ../../config/workshop-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: false  # Controlled by prune_users variable
+      selfHeal: true
+      allowEmpty: true
+    syncOptions:
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true

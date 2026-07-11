@@ -1,0 +1,91 @@
+---
+# Destroy scope: users
+# Deletes user namespaces, workspaces, and RBAC
+
+- name: Delete workshop-resources Application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-resources
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Wait for workshop-resources Application deletion
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-resources
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: resources_app
+  until: resources_app.resources | length == 0
+  retries: 30
+  delay: 10
+  ignore_errors: true
+
+- name: Delete workshop-namespaces Application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-namespaces
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Wait for workshop-namespaces Application deletion
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-namespaces
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: namespaces_app
+  until: namespaces_app.resources | length == 0
+  retries: 60
+  delay: 10
+  ignore_errors: true
+
+- name: Delete user namespaces (if Applications didn't clean up)
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: "{{ workshop.username_prefix }}{{ '%02d' | format(item) }}{{ workshop.namespace_suffix }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ range(1, workshop.user_count + 1) | list }}"
+  ignore_errors: true
+
+- name: Remove workshop htpasswd identity provider
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: config.openshift.io/v1
+      kind: OAuth
+      metadata:
+        name: cluster
+      spec:
+        identityProviders: "{{ existing_idps | rejectattr('name', 'equalto', 'workshop_htpasswd') | list }}"
+  vars:
+    existing_idps: "{{ (lookup('kubernetes.core.k8s', api_version='config.openshift.io/v1', kind='OAuth', resource_name='cluster', errors='ignore') | default({})).get('spec', {}).get('identityProviders', []) }}"
+  ignore_errors: true
+
+- name: Delete htpasswd Secret
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Secret
+    name: workshop-htpasswd
+    namespace: openshift-config
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Display users destroy completion
+  ansible.builtin.debug:
+    msg:
+      - "User resources destroyed:"
+      - "  - {{ workshop.user_count }} user namespaces"
+      - "  - Workshop htpasswd identity provider removed"

@@ -1,0 +1,105 @@
+---
+- name: Check if GitOps Operator is already installed
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: openshift-gitops-operator
+    namespace: openshift-operators
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: gitops_subscription_check
+
+- name: Create openshift-gitops-operator namespace
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ gitops.operator_namespace }}"
+        labels:
+          openshift.io/cluster-monitoring: "true"
+  when: gitops_subscription_check.resources | length == 0
+
+- name: Create OperatorGroup for GitOps
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: operators.coreos.com/v1
+      kind: OperatorGroup
+      metadata:
+        name: openshift-gitops-operator
+        namespace: "{{ gitops.operator_namespace }}"
+      spec: {}
+  when: gitops_subscription_check.resources | length == 0
+
+- name: Create Subscription for OpenShift GitOps Operator
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: Subscription
+      metadata:
+        name: openshift-gitops-operator
+        namespace: "{{ gitops.operator_namespace }}"
+      spec:
+        channel: "{{ gitops.operator_channel }}"
+        name: openshift-gitops-operator
+        source: redhat-operators
+        sourceNamespace: openshift-marketplace
+        installPlanApproval: "{{ gitops.install_plan_approval }}"
+  when: gitops_subscription_check.resources | length == 0
+
+- name: Wait for GitOps Operator CSV to be succeeded
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ gitops.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: gitops_csv
+  until:
+    - gitops_csv.resources | length > 0
+    - gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | list | length > 0
+    - gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | map(attribute='status.phase') | select('equalto', 'Succeeded') | list | length > 0
+  retries: 60
+  delay: 10
+
+- name: Display GitOps Operator version
+  ansible.builtin.debug:
+    msg: "GitOps Operator CSV: {{ gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | map(attribute='metadata.name') | first }}"
+
+- name: Wait for default Argo CD instance to be ready
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1beta1
+    kind: ArgoCD
+    name: openshift-gitops
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: argocd_instance
+  until:
+    - argocd_instance.resources | length > 0
+    - argocd_instance.resources[0].status is defined
+    - argocd_instance.resources[0].status.phase is defined
+    - argocd_instance.resources[0].status.phase == "Available"
+  retries: 60
+  delay: 10
+
+- name: Get Argo CD Route
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    name: openshift-gitops-server
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: argocd_route
+
+- name: Set GitOps console URL fact
+  ansible.builtin.set_fact:
+    gitops_console_url: "https://{{ argocd_route.resources[0].spec.host }}"
+  when: argocd_route.resources | length > 0
+
+- name: Display GitOps console URL
+  ansible.builtin.debug:
+    msg: "Argo CD Console: {{ gitops_console_url }}"

@@ -1,0 +1,51 @@
+---
+- name: Bootstrap OpenShift Dev Spaces + Developer Lightspeed Workshop
+  hosts: localhost
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - cluster_api_url is defined and cluster_api_url != ""
+          - demo_repository_url is defined and demo_repository_url != ""
+          - vault_llm_api_key is defined and vault_llm_api_key != ""
+        fail_msg: "Required variables are missing. Check cluster_api_url, demo_repository_url, and vault_llm_api_key."
+      tags: always
+
+    - name: Create artifacts directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../artifacts"
+        state: directory
+        mode: '0755'
+      tags: always
+
+  roles:
+    - role: preflight
+      tags: [preflight, never]
+
+    - role: gitops_operator
+      tags: [gitops, operator]
+
+    - role: gitops_bootstrap
+      tags: [gitops, bootstrap]
+
+    - role: htpasswd_users
+      tags: [users, auth]
+
+    - role: llm_secret
+      tags: [secrets, llm]
+
+    - role: repository_secret
+      tags: [secrets, repository]
+      when: demo_repository_private | default(false) | bool
+
+  post_tasks:
+    - name: Display workshop endpoints
+      ansible.builtin.debug:
+        msg:
+          - "Workshop provisioning completed!"
+          - "GitOps Console: https://{{ gitops_console_url | default('openshift-gitops-server-openshift-gitops.apps.your-cluster.com') }}"
+          - "Dev Spaces Dashboard: https://{{ devspaces_dashboard_url | default('devspaces.apps.your-cluster.com') }}"
+          - "User credentials: {{ workshop.credentials_output }}"
+      tags: always

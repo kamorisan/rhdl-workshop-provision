@@ -1,0 +1,39 @@
+---
+# Ansible Vault Example
+# Copy this file to vault.yml and encrypt it with:
+#   ansible-vault encrypt ansible/group_vars/vault.yml
+#
+# Edit encrypted vault:
+#   ansible-vault edit ansible/group_vars/vault.yml
+#
+# View encrypted vault:
+#   ansible-vault view ansible/group_vars/vault.yml
+
+# LLM API Key (REQUIRED)
+vault_llm_api_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# GitOps Repository Token (required if repo is private)
+vault_gitops_repo_token: "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Demo Repository Credentials (required if repo is private)
+vault_demo_repo_username: "deploy-user"
+vault_demo_repo_token: "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Workshop User Passwords (optional - if not set, passwords are randomly generated)
+# vault_workshop_passwords:
+#   user01: "SecurePassword1!"
+#   user02: "SecurePassword2!"
+#   user03: "SecurePassword3!"
+
+# Azure OpenAI (if using Azure as provider)
+# vault_azure_openai_api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# vault_azure_openai_endpoint: "https://your-resource.openai.azure.com/"
+# vault_azure_openai_deployment: "gpt-4"
+
+# Google Gemini (if using Gemini as provider)
+# vault_gemini_api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# AWS Bedrock (if using Bedrock as provider)
+# vault_aws_access_key_id: "AKIAXXXXXXXXXXXXXXXX"
+# vault_aws_secret_access_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# vault_aws_region: "us-east-1"

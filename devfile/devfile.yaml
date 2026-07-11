@@ -1,0 +1,82 @@
+schemaVersion: 2.2.0
+metadata:
+  name: spring-to-quarkus-migration
+  displayName: Spring Boot to Quarkus Migration Workshop
+  description: Workshop environment for migrating Spring Boot PetClinic to Quarkus using MTA and Developer Lightspeed
+  tags:
+    - Java
+    - Spring Boot
+    - Quarkus
+    - Migration
+    - MTA
+  projectType: Maven
+  language: Java
+  version: 1.0.0
+
+projects:
+  - name: spring-petclinic
+    git:
+      remotes:
+        origin: https://github.com/kamorisan/spring-to-quarkus-sample
+      checkoutFrom:
+        revision: main
+
+components:
+  - name: dev-tools
+    container:
+      image: quay.io/devfile/universal-developer-image:ubi8-latest
+      memoryRequest: 2Gi
+      memoryLimit: 8Gi
+      cpuRequest: 500m
+      cpuLimit: 2000m
+      mountSources: true
+      volumeMounts:
+        - name: m2
+          path: /home/user/.m2
+      env:
+        - name: JAVA_HOME
+          value: /usr/lib/jvm/java-17
+        - name: MAVEN_OPTS
+          value: "-Xmx1g"
+      endpoints:
+        - name: http
+          targetPort: 8080
+          exposure: public
+          protocol: http
+
+  - name: m2
+    volume:
+      size: 10Gi
+
+commands:
+  - id: maven-build
+    exec:
+      component: dev-tools
+      commandLine: mvn clean package -DskipTests
+      workingDir: ${PROJECT_SOURCE}/spring-petclinic
+      group:
+        kind: build
+        isDefault: true
+
+  - id: maven-test
+    exec:
+      component: dev-tools
+      commandLine: mvn test
+      workingDir: ${PROJECT_SOURCE}/spring-petclinic
+      group:
+        kind: test
+
+  - id: run-app
+    exec:
+      component: dev-tools
+      commandLine: mvn spring-boot:run
+      workingDir: ${PROJECT_SOURCE}/spring-petclinic
+      group:
+        kind: run
+        isDefault: true
+
+  - id: mta-analyze
+    exec:
+      component: dev-tools
+      commandLine: echo "Use MTA VS Code extension (View -> Command Palette -> MTA: Analyze) to analyze the Spring Boot application for Quarkus migration"
+      workingDir: ${PROJECT_SOURCE}/spring-petclinic

@@ -1,0 +1,37 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workshop-users
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-100"
+spec:
+  description: Workshop User Namespaces and Resources
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: 'user*-dev'
+      server: https://kubernetes.default.svc
+    - namespace: openshift-gitops
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  # Deny dangerous cluster-scoped resources
+  clusterResourceBlacklist:
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+    - group: 'config.openshift.io'
+      kind: OAuth
+    - group: 'operators.coreos.com'
+      kind: Subscription
+    - group: 'operators.coreos.com'
+      kind: OperatorGroup
+    - group: 'apiextensions.k8s.io'
+      kind: CustomResourceDefinition

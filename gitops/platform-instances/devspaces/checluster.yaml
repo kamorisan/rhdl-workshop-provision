@@ -1,0 +1,32 @@
+---
+apiVersion: org.eclipse.che/v2
+kind: CheCluster
+metadata:
+  name: devspaces
+  namespace: openshift-devspaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+spec:
+  components:
+    cheServer:
+      debug: false
+      logLevel: INFO
+    metrics:
+      enable: true
+    pluginRegistry:
+      openVSXURL: https://open-vsx.org
+  containerRegistry: {}
+  devEnvironments:
+    startTimeoutSeconds: 300
+    secondsOfRunBeforeIdling: -1  # Disable auto-idling by default
+    maxNumberOfWorkspacesPerUser: 5
+    containerBuildConfiguration:
+      openShiftSecurityContextConstraint: container-build
+    defaultEditor: che-incubator/che-code/latest
+    defaultNamespace:
+      autoProvision: true
+      template: <username>-devspaces
+    storage:
+      pvcStrategy: per-workspace
+  gitServices: {}
+  networking: {}

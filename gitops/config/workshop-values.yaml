@@ -1,0 +1,51 @@
+---
+# Workshop Configuration Values
+# This file is referenced by Helm charts for user namespaces and resources
+
+workshop:
+  userCount: 10
+  usernamePrefix: user
+  namespaceSuffix: -dev
+
+demoApp:
+  repositoryUrl: https://github.com/kamorisan/spring-to-quarkus-sample
+  revision: main
+  workMode: readonly  # readonly, per_user_branch, fork
+
+migration:
+  source: springboot
+  target: quarkus
+
+devspaces:
+  dashboardUrl: https://devspaces.apps.example.com
+
+mta:
+  namespace: openshift-mta
+  solutionServerUrl: https://mta-solution-server-openshift-mta.apps.example.com
+
+workspace:
+  cpuRequest: "500m"
+  cpuLimit: "2000m"
+  memoryRequest: "2Gi"
+  memoryLimit: "8Gi"
+  storage: "10Gi"
+  autoStopTimeoutMinutes: 60
+
+resourceQuota:
+  pods: "10"
+  services: "5"
+  persistentVolumeClaims: "5"
+  requestsCpu: "2"
+  requestsMemory: "16Gi"
+  limitsCpu: "4"
+  limitsMemory: "32Gi"
+
+limitRange:
+  podMinCpu: "100m"
+  podMaxCpu: "4000m"
+  podMinMemory: "128Mi"
+  podMaxMemory: "16Gi"
+  containerDefaultCpu: "500m"
+  containerDefaultMemory: "1Gi"
+  containerDefaultLimitCpu: "2000m"
+  containerDefaultLimitMemory: "4Gi"

@@ -1,0 +1,148 @@
+---
+# OpenShift Cluster Configuration
+cluster_api_url: ""
+cluster_validate_certs: true
+
+# GitOps Configuration
+gitops:
+  operator_namespace: "openshift-gitops-operator"
+  instance_namespace: "openshift-gitops"
+  operator_channel: "latest"
+  install_plan_approval: "Automatic"
+  repo_url: ""  # URL of this repository for GitOps manifests
+  repo_revision: "main"
+  repo_path: "gitops/bootstrap"
+  auth_type: "none"  # none, token, ssh
+
+# Workshop Configuration
+workshop:
+  user_count: 10
+  username_prefix: "user"
+  namespace_suffix: "-dev"
+  password_mode: "generated"  # generated or provided
+  password_length: 16
+  credentials_output: "./artifacts/workshop-users.csv"
+  prune_users: false
+
+# Demo Application
+demo_repository_url: "https://github.com/kamorisan/spring-to-quarkus-sample"
+demo_repository_revision: "main"
+demo_repository_private: false
+git_work_mode: "readonly"  # readonly, per_user_branch, fork
+
+# Migration Configuration
+migration_source: "springboot"
+migration_target: "quarkus"
+
+# OpenShift Dev Spaces
+devspaces:
+  operator_namespace: "openshift-devspaces"
+  channel: "stable"
+  install_plan_approval: "Automatic"
+  workspace_storage: "10Gi"
+  cpu_request: "500m"
+  cpu_limit: "2000m"
+  memory_request: "2Gi"
+  memory_limit: "8Gi"
+  auto_stop_timeout_minutes: 60
+
+# Migration Toolkit for Applications
+mta:
+  operator_namespace: "openshift-mta"
+  channel: "stable"
+  install_plan_approval: "Automatic"
+  instance_namespace: "openshift-mta"
+  solution_server_enabled: true
+  solution_server_storage: "5Gi"
+  solution_server_db_storage: "5Gi"
+
+# LLM Configuration
+llm:
+  provider: "openai"  # openai, azure, gemini, bedrock
+  model: ""  # e.g., gpt-4, gpt-3.5-turbo
+  api_base: ""  # e.g., https://api.openai.com/v1
+  # API key comes from vault_llm_api_key in vault.yml
+
+# Resource Management
+resource_quota:
+  pods: "10"
+  services: "5"
+  persistentvolumeclaims: "5"
+  requests_cpu: "2"
+  requests_memory: "16Gi"
+  limits_cpu: "4"
+  limits_memory: "32Gi"
+
+limit_range:
+  pod_min_cpu: "100m"
+  pod_max_cpu: "4000m"
+  pod_min_memory: "128Mi"
+  pod_max_memory: "16Gi"
+  container_default_cpu: "500m"
+  container_default_memory: "1Gi"
+  container_default_limit_cpu: "2000m"
+  container_default_limit_memory: "4Gi"
+
+# Network Policy
+network_policy_enabled: false
+
+# PVC Retention
+retain_solution_server_pvc: false
+retain_workspace_pvc: false
+
+# Destruction Configuration
+destroy_scope: "users"  # users, workshop, platform, all-gitops-managed, all
+confirm_destroy: false
+
+# AppProjects
+appprojects:
+  - name: workshop-operators
+    description: "Workshop Operators"
+    allow_cluster_resource: true
+  - name: workshop-platform
+    description: "Workshop Platform"
+    allow_cluster_resource: true
+  - name: workshop-users
+    description: "Workshop User Resources"
+    allow_cluster_resource: false
+
+# Sync Waves
+sync_waves:
+  appproject: -100
+  operator_namespace: -90
+  operatorgroup: -80
+  subscription: -70
+  operator_readiness: -60
+  cluster_config: -50
+  platform_namespace: -40
+  secret_check: -30
+  platform_instance: -20
+  platform_config: -10
+  workshop_namespace: 0
+  workshop_rbac: 10
+  workspace_config: 20
+  devworkspace: 30
+  demo_resources: 40
+  verification: 50
+
+# Application Sync Waves (for Child Applications)
+app_sync_waves:
+  operators: -80
+  cluster_config: -50
+  platform_namespaces: -40
+  platform_instances: -20
+  workshop_namespaces: 0
+  workshop_resources: 10
+  verification: 50
+
+# Common Labels
+common_labels:
+  app.kubernetes.io/managed-by: "openshift-gitops"
+  app.kubernetes.io/part-of: "developer-lightspeed-workshop"
+
+# Timeout Configuration (seconds)
+timeout:
+  operator_ready: 600
+  instance_ready: 900
+  workspace_ready: 300
+  application_sync: 600

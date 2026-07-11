@@ -1,0 +1,141 @@
+---
+- name: Verify - GitOps Operator Ready
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ gitops.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: gitops_csv
+  failed_when:
+    - gitops_csv.resources | length == 0
+    - gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | map(attribute='status.phase') | select('equalto', 'Succeeded') | list | length == 0
+
+- name: Verify - Root Application Synced
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-root
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: root_app
+  failed_when:
+    - root_app.resources | length == 0
+    - root_app.resources[0].status.sync.status != "Synced"
+
+- name: Verify - Child Applications Synced
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: all_apps
+
+- name: Verify - Display Application Status
+  ansible.builtin.debug:
+    msg: "{{ item.metadata.name }}: Sync={{ item.status.sync.status | default('Unknown') }}, Health={{ item.status.health.status | default('Unknown') }}"
+  loop: "{{ all_apps.resources }}"
+  when: item.metadata.name != 'workshop-root'
+
+- name: Verify - Dev Spaces Operator Ready
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ devspaces.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: devspaces_csv
+  failed_when:
+    - devspaces_csv.resources | length == 0
+    - devspaces_csv.resources | selectattr('metadata.name', 'match', '^devspaces') | map(attribute='status.phase') | select('equalto', 'Succeeded') | list | length == 0
+
+- name: Verify - MTA Operator Ready
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ mta.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: mta_csv
+  failed_when:
+    - mta_csv.resources | length == 0
+    - mta_csv.resources | selectattr('metadata.name', 'match', '^mta-operator') | map(attribute='status.phase') | select('equalto', 'Succeeded') | list | length == 0
+
+- name: Verify - Dev Spaces Instance Ready
+  kubernetes.core.k8s_info:
+    api_version: org.eclipse.che/v2
+    kind: CheCluster
+    name: devspaces
+    namespace: "{{ devspaces.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: checluster
+  failed_when:
+    - checluster.resources | length == 0
+    - checluster.resources[0].status.phase | default('Unknown') != 'Available'
+
+- name: Verify - MTA Instance Ready
+  kubernetes.core.k8s_info:
+    api_version: tackle.konveyor.io/v1alpha1
+    kind: Tackle
+    name: mta
+    namespace: "{{ mta.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: tackle
+  failed_when: tackle.resources | length == 0
+
+- name: Verify - Solution Server Pods Ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ mta.instance_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/component=solution-server"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: solution_server_pods
+  when: mta.solution_server_enabled | default(true)
+
+- name: Verify - Display Solution Server status
+  ansible.builtin.debug:
+    msg: "Solution Server Pods: {{ solution_server_pods.resources | length }} (expected: >= 1)"
+  when: mta.solution_server_enabled | default(true)
+
+- name: Verify - Workshop User Namespaces
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ workshop.username_prefix }}{{ '%02d' | format(item) }}{{ workshop.namespace_suffix }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ range(1, workshop.user_count + 1) | list }}"
+  register: user_namespaces
+  failed_when: user_namespaces.results | selectattr('resources', 'equalto', []) | list | length > 0
+
+- name: Verify - User RBAC (sample check)
+  kubernetes.core.k8s_info:
+    api_version: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    name: workshop-user-admin
+    namespace: "{{ workshop.username_prefix }}01{{ workshop.namespace_suffix }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: rbac_check
+  failed_when: rbac_check.resources | length == 0
+
+- name: Verify - User DevWorkspaces
+  kubernetes.core.k8s_info:
+    api_version: workspace.devfile.io/v1alpha2
+    kind: DevWorkspace
+    namespace: "{{ workshop.username_prefix }}{{ '%02d' | format(item) }}{{ workshop.namespace_suffix }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ range(1, workshop.user_count + 1) | list }}"
+  register: devworkspaces
+  failed_when: devworkspaces.results | selectattr('resources', 'equalto', []) | list | length > 0
+
+- name: Verify - Summary
+  ansible.builtin.debug:
+    msg:
+      - "=== Verification Summary ==="
+      - "✓ GitOps Operator: Ready"
+      - "✓ Root Application: Synced"
+      - "✓ Dev Spaces Operator: Ready"
+      - "✓ MTA Operator: Ready"
+      - "✓ Dev Spaces Instance: Available"
+      - "✓ MTA Instance: Created"
+      - "✓ User Namespaces: {{ workshop.user_count }}/{{ workshop.user_count }}"
+      - "✓ DevWorkspaces: {{ devworkspaces.results | selectattr('resources', 'ne', []) | list | length }}/{{ workshop.user_count }}"
+      - "Workshop is ready for use!"

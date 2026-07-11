@@ -1,0 +1,85 @@
+---
+- name: Ensure MTA namespace exists (for LLM Secret)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ mta.instance_namespace }}"
+        labels:
+          openshift.io/cluster-monitoring: "true"
+
+- name: Create LLM API Key Secret (OpenAI compatible)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: kai-api-keys
+        namespace: "{{ mta.instance_namespace }}"
+      type: Opaque
+      stringData:
+        OPENAI_API_BASE: "{{ llm.api_base }}"
+        OPENAI_API_KEY: "{{ vault_llm_api_key }}"
+  when: llm.provider == "openai"
+  no_log: true
+
+- name: Create LLM API Key Secret (Azure OpenAI)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: kai-api-keys
+        namespace: "{{ mta.instance_namespace }}"
+      type: Opaque
+      stringData:
+        AZURE_OPENAI_API_KEY: "{{ vault_azure_openai_api_key }}"
+        AZURE_OPENAI_ENDPOINT: "{{ vault_azure_openai_endpoint }}"
+        AZURE_OPENAI_DEPLOYMENT: "{{ vault_azure_openai_deployment | default(llm.model) }}"
+  when: llm.provider == "azure"
+  no_log: true
+
+- name: Create LLM API Key Secret (Google Gemini)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: kai-api-keys
+        namespace: "{{ mta.instance_namespace }}"
+      type: Opaque
+      stringData:
+        GEMINI_API_KEY: "{{ vault_gemini_api_key }}"
+  when: llm.provider == "gemini"
+  no_log: true
+
+- name: Create LLM API Key Secret (AWS Bedrock)
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: kai-api-keys
+        namespace: "{{ mta.instance_namespace }}"
+      type: Opaque
+      stringData:
+        AWS_ACCESS_KEY_ID: "{{ vault_aws_access_key_id }}"
+        AWS_SECRET_ACCESS_KEY: "{{ vault_aws_secret_access_key }}"
+        AWS_REGION: "{{ vault_aws_region | default('us-east-1') }}"
+  when: llm.provider == "bedrock"
+  no_log: true
+
+- name: Display LLM Secret creation status
+  ansible.builtin.debug:
+    msg: "LLM API Key Secret 'kai-api-keys' created in {{ mta.instance_namespace }} for provider: {{ llm.provider }}"

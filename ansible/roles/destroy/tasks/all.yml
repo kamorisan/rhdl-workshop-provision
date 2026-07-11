@@ -1,0 +1,99 @@
+---
+# Destroy scope: all
+# Deletes everything including GitOps Operator
+
+- name: Include all-gitops-managed destroy tasks
+  ansible.builtin.include_tasks: all-gitops-managed.yml
+
+- name: Delete Root Application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: workshop-root
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Delete AppProjects
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: AppProject
+    name: "{{ item.name }}"
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ appprojects }}"
+  ignore_errors: true
+
+- name: Delete GitOps repository Secret
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Secret
+    name: workshop-gitops-repo
+    namespace: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+  no_log: true
+
+- name: Delete GitOps Operator Subscription
+  kubernetes.core.k8s:
+    state: absent
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: openshift-gitops-operator
+    namespace: "{{ gitops.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Wait for GitOps Operator CSV deletion
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ gitops.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: gitops_csv
+  until: gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | list | length == 0
+  retries: 60
+  delay: 10
+  ignore_errors: true
+
+- name: Delete GitOps OperatorGroup
+  kubernetes.core.k8s:
+    state: absent
+    api_version: operators.coreos.com/v1
+    kind: OperatorGroup
+    name: openshift-gitops-operator
+    namespace: "{{ gitops.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Delete GitOps Operator namespace
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: "{{ gitops.operator_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Delete openshift-gitops namespace
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: "{{ gitops.instance_namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  ignore_errors: true
+
+- name: Display all destroy completion
+  ansible.builtin.debug:
+    msg:
+      - "Complete workshop environment destroyed:"
+      - "  - All GitOps-managed resources"
+      - "  - OpenShift GitOps Operator"
+      - "  - All workshop namespaces"
+      - "  - All secrets"
+      - ""
+      - "Workshop environment completely removed from cluster."

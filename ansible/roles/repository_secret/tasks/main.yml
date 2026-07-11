@@ -1,0 +1,28 @@
+---
+- name: Create demo repository credential Secret
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: workshop-demo-repo
+        namespace: "{{ gitops.instance_namespace }}"
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      type: Opaque
+      stringData:
+        type: git
+        url: "{{ demo_repository_url }}"
+        username: "{{ vault_demo_repo_username | default('git') }}"
+        password: "{{ vault_demo_repo_token }}"
+  when:
+    - demo_repository_private | default(false) | bool
+    - vault_demo_repo_token is defined
+  no_log: true
+
+- name: Display repository Secret creation status
+  ansible.builtin.debug:
+    msg: "Demo repository Secret created for {{ demo_repository_url }}"
+  when: demo_repository_private | default(false) | bool

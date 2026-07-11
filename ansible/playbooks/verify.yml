@@ -1,0 +1,8 @@
+---
+- name: Verify OpenShift Dev Spaces + Developer Lightspeed Workshop
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: verification
+      tags: [verify, verification]

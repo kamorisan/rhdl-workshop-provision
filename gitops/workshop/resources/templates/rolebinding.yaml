@@ -1,0 +1,25 @@
+{{- range $i := untilStep 1 (add1 .Values.workshop.userCount | int) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $.Values.workshop.usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $.Values.workshop.namespaceSuffix }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workshop-user-admin
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    workshop.user: {{ $username }}
+subjects:
+  - kind: User
+    apiGroup: rbac.authorization.k8s.io
+    name: {{ $username }}
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: admin
+{{- end }}

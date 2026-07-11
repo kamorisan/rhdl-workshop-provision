@@ -1,0 +1,45 @@
+---
+# NOTE: This is a TEMPLATE that requires verification against actual MTA CRD
+# Run the following to verify fields on your cluster:
+#   oc explain tackle.spec --recursive
+#   oc get crd tackles.tackle.konveyor.io -o yaml
+#
+# Adjust the spec fields according to your MTA Operator version's CRD
+apiVersion: tackle.konveyor.io/v1alpha1
+kind: Tackle
+metadata:
+  name: mta
+  namespace: openshift-mta
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+spec:
+  # Verify these fields with: oc explain tackle.spec --recursive
+
+  # Solution Server (Developer Lightspeed) configuration
+  # Field names may vary - check CRD on your cluster
+  kai:
+    enabled: true
+
+  # LLM Provider configuration - field names may differ
+  # Possible field names: kai_llm_provider, llmProvider, aiProvider
+  # Uncomment and adjust based on actual CRD:
+  # kai_llm_provider: openai
+  # kai_llm_model: gpt-4
+  # kai_llm_baseurl: https://api.openai.com/v1
+
+  # Secret reference for LLM API keys
+  # Field name may vary: kai_secret_name, llmSecretName, aiSecretRef
+  # Uncomment and adjust:
+  # kai_secret_name: kai-api-keys
+
+  # Database configuration for Solution Server
+  # Check if separate DB fields exist or if embedded in kai config
+  # database:
+  #   volume:
+  #     capacity: 5Gi
+
+  # Hub configuration
+  hub_database_volume_size: 10Gi
+
+  # Feature flags - verify available flags in your version
+  feature_auth_required: false  # Workshop mode - no auth required
