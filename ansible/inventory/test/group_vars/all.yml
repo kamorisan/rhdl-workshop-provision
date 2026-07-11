@@ -1,0 +1,4 @@
+---
+# Test Vault - Solution Server無効の場合はダミー値でOK
+
+vault_llm_api_key: "sk-test-dummy-key-not-used-when-solution-server-disabled"
