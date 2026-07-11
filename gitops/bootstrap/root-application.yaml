@@ -11,7 +11,7 @@ metadata:
 spec:
   project: workshop-operators
   source:
-    repoURL: https://github.com/your-org/workshop-provisioning.git
+    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
     targetRevision: main
     path: gitops/operators
   destination:
@@ -41,7 +41,7 @@ metadata:
 spec:
   project: workshop-platform
   source:
-    repoURL: https://github.com/your-org/workshop-provisioning.git
+    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
     targetRevision: main
     path: gitops/cluster-config
   destination:
@@ -70,7 +70,7 @@ metadata:
 spec:
   project: workshop-platform
   source:
-    repoURL: https://github.com/your-org/workshop-provisioning.git
+    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
     targetRevision: main
     path: gitops/platform-namespaces
   destination:
@@ -98,7 +98,7 @@ metadata:
 spec:
   project: workshop-platform
   source:
-    repoURL: https://github.com/your-org/workshop-provisioning.git
+    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
     targetRevision: main
     path: gitops/platform-instances
   destination:
@@ -127,7 +127,7 @@ metadata:
 spec:
   project: workshop-users
   source:
-    repoURL: https://github.com/your-org/workshop-provisioning.git
+    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
     targetRevision: main
     path: gitops/workshop/namespaces
     helm:
@@ -158,7 +158,7 @@ metadata:
 spec:
   project: workshop-users
   source:
-    repoURL: https://github.com/your-org/workshop-provisioning.git
+    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
     targetRevision: main
     path: gitops/workshop/resources
     helm:
