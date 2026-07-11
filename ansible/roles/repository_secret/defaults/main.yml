@@ -1,0 +1,7 @@
+---
+# Repository Secret defaults (can be overridden by group_vars)
+gitops:
+  instance_namespace: "openshift-gitops"
+
+demo_repository_url: ""
+demo_repository_private: false

@@ -1,0 +1,10 @@
+---
+# HTPasswd Users defaults (can be overridden by group_vars)
+workshop:
+  user_count: 10
+  username_prefix: "user"
+  namespace_suffix: "-dev"
+  password_mode: "generated"
+  password_length: 16
+  credentials_output: "./artifacts/workshop-users.csv"
+  prune_users: false

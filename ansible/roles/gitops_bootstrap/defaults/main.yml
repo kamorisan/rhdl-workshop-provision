@@ -1,0 +1,19 @@
+---
+# GitOps Bootstrap defaults (can be overridden by group_vars)
+gitops:
+  instance_namespace: "openshift-gitops"
+  repo_url: ""
+  repo_revision: "main"
+  repo_path: "gitops/bootstrap"
+  auth_type: "none"
+
+appprojects:
+  - name: workshop-operators
+    description: "Workshop Operators"
+    allow_cluster_resource: true
+  - name: workshop-platform
+    description: "Workshop Platform"
+    allow_cluster_resource: true
+  - name: workshop-users
+    description: "Workshop User Resources"
+    allow_cluster_resource: false

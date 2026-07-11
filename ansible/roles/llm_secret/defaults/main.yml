@@ -1,0 +1,8 @@
+---
+# LLM Secret defaults (can be overridden by group_vars)
+mta:
+  instance_namespace: "openshift-mta"
+
+llm:
+  provider: "openai"
+  api_base: ""
