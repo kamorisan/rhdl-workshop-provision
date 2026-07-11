@@ -62,6 +62,10 @@ Ansible (Bootstrap)
 The easiest way to get started is using the automated setup script:
 
 ```bash
+# 0. Setup Git repository (first time only)
+cd workshop-provisioning
+./scripts/setup-git.sh
+
 # 1. Configure inventory
 cp ansible/inventory/example/hosts.yml ansible/inventory/production/hosts.yml
 vim ansible/inventory/production/hosts.yml

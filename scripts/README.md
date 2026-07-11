@@ -1,234 +1,378 @@
 # Workshop Scripts
 
-This directory contains operational scripts for managing the workshop environment.
+このディレクトリには、ワークショップ環境の運用に必要なすべてのスクリプトが含まれています。
 
-## Available Scripts
+## 📁 スクリプト一覧
 
-### Initial Setup and Provisioning
+### 🚀 セットアップ・プロビジョニング
+
+#### `setup-git.sh`
+GitHubリポジトリのセットアップ（初回のみ）
+
+**用途**: ローカルのworkshop-provisioningをGitHubにpushする
+
+**実行タイミング**: 最初の1回のみ
+
+**使用方法**:
+```bash
+./scripts/setup-git.sh
+```
+
+**処理内容**:
+- Git初期化
+- リモートリポジトリURL設定
+- コミット＆プッシュ
+
+---
 
 #### `initial-setup.sh`
-Complete initial provisioning of the workshop environment.
+完全な初回セットアップ（本番用）
 
-**Usage:**
+**用途**: 本番環境の初回プロビジョニング
+
+**実行タイミング**: 本番デプロイ時
+
+**使用方法**:
 ```bash
 ./scripts/initial-setup.sh
 ```
 
-**What it does:**
-1. Checks prerequisites (oc, ansible, htpasswd)
-2. Verifies configuration files
-3. Installs Ansible collections
-4. Runs preflight checks
-5. Provisions complete workshop environment
-6. Runs verification checks
-7. Displays endpoints and credentials
+**処理内容**:
+1. 前提条件チェック
+2. 設定ファイル検証
+3. Ansible collectionsインストール
+4. Preflightチェック
+5. 完全プロビジョニング
+6. 検証
+7. エンドポイント＆資格情報表示
 
-**Requirements:**
-- `ansible/inventory/production/hosts.yml` configured
-- `ansible/group_vars/vault.yml` configured and encrypted
-- Logged in to OpenShift with cluster-admin
+---
 
-### GitOps Management
+### 🧪 テスト用スクリプト
 
-#### `cleanup-gitops.sh`
-Cleanup GitOps Applications and resources.
+#### `test-full.sh` ⭐ 推奨
+完全なGitOpsテスト（2ユーザー、Solution Server無効）
 
-**Usage:**
+**用途**: GitOps機能を含む完全なテスト
+
+**実行タイミング**: 開発・検証時
+
+**使用方法**:
 ```bash
-./scripts/cleanup-gitops.sh [users|platform|all]
+./scripts/test-full.sh
 ```
 
-**Scopes:**
-- `users` - Remove user namespaces and workspaces only
-- `platform` - Remove users + Dev Spaces + MTA instances
-- `all` - Remove all workshop Applications (keeps GitOps Operator)
+**処理内容**:
+1. ログイン確認
+2. Ansible collectionsインストール
+3. Preflightチェック（確認プロンプト）
+4. 完全プロビジョニング（15-25分）
+5. 検証
+6. 結果表示
 
-**Options:**
+**前提条件**:
+- GitHubにpush済み
+- `ansible/inventory/test/hosts.yml`設定済み
+
+---
+
+#### `test-quick-start.sh`
+クイックテスト（対話型、旧形式）
+
+**用途**: 対話的なテスト実行
+
+**実行タイミング**: 手動確認したい時
+
+**使用方法**:
 ```bash
-# Also delete Root Application
+./scripts/test-quick-start.sh
+```
+
+**処理内容**: test-full.shとほぼ同じ
+
+---
+
+#### `test-without-gitops.sh`
+GitOps無し限定テスト
+
+**用途**: GitOpsをスキップした最小テスト
+
+**実行タイミング**: GitHubにpushできない時、または最小限の動作確認時
+
+**使用方法**:
+```bash
+./scripts/test-without-gitops.sh
+```
+
+**処理内容**:
+- Preflightチェック
+- ユーザー作成（htpasswd）
+- OAuth設定
+
+**制限事項**:
+- GitOps Operatorなし
+- Dev Spaces/MTA Operatorなし
+- Namespaceなし
+- Workspaceなし
+
+---
+
+### 📊 ステータス確認
+
+#### `status-check.sh` ⭐ 頻繁に使用
+ワークショップ環境の状態確認
+
+**用途**: 現在の環境状態をクイック確認
+
+**実行タイミング**: いつでも
+
+**使用方法**:
+```bash
+./scripts/status-check.sh
+```
+
+**表示内容**:
+- GitOps Operator状態
+- GitOps Applications sync/health
+- Dev Spaces Operator/Instance状態
+- MTA Operator/Instance状態
+- Solution Server状態
+- ユーザーNamespace数
+- Workspace状態
+- OAuth設定
+- 総合ステータス判定
+
+---
+
+### 🧹 クリーンアップ
+
+#### `cleanup-gitops.sh` ⭐ 重要
+GitOps Applicationsのクリーンアップ
+
+**用途**: ワークショップリソースの段階的削除
+
+**実行タイミング**: テスト後、ワークショップ終了後
+
+**使用方法**:
+```bash
+# ユーザーのみ削除
+./scripts/cleanup-gitops.sh users
+
+# プラットフォームまで削除
+./scripts/cleanup-gitops.sh platform
+
+# すべて削除（GitOps Operatorは残す）
+./scripts/cleanup-gitops.sh all
+
+# Root Applicationも含めてすべて削除
 export CLEANUP_ROOT=true
 ./scripts/cleanup-gitops.sh all
 ```
+
+**削除スコープ**:
+- `users` - ユーザーNamespace、Workspace、RBAC
+- `platform` - users + Dev Spaces/MTA Instance
+- `all` - platform + Operators
 
 ---
 
 #### `reset-gitops.sh`
-Reset GitOps Applications (cleanup and re-create).
+GitOps Applicationsのリセット（削除＋再作成）
 
-**Usage:**
+**用途**: ワークショップ環境の再セットアップ
+
+**実行タイミング**: 環境をクリーンな状態から再構築したい時
+
+**使用方法**:
 ```bash
-./scripts/reset-gitops.sh [applications|full]
+# Applicationのみリセット（Secretは保持、パスワード維持）
+./scripts/reset-gitops.sh applications
+
+# 完全リセット（Secret再生成、新パスワード）
+./scripts/reset-gitops.sh full
 ```
 
-**Modes:**
-- `applications` - Reset Applications only (keeps Operator and Secrets)
-- `full` - Complete reset including Operator and Secrets (regenerates passwords)
-
-**What it does:**
-1. Cleanup existing Applications
-2. Wait for cleanup to complete
-3. Re-install GitOps Operator (if full mode)
-4. Re-create Secrets (if full mode)
-5. Bootstrap GitOps Applications
-6. Monitor sync status
-
-**Warning:** Full mode regenerates user passwords!
-
-### Status and Monitoring
-
-#### `status-check.sh`
-Quick status check of workshop environment.
-
-**Usage:**
-```bash
-./scripts/status-check.sh
-```
-
-**Displays:**
-- GitOps Operator status
-- GitOps Applications sync/health
-- Dev Spaces Operator and instance status
-- MTA Operator and instance status
-- Solution Server status
-- User namespaces count
-- Workspace status
-- OAuth configuration
-- Resource usage
-- Overall environment status
+**モード**:
+- `applications` - GitOps Operatorとsecretは保持
+- `full` - すべて再作成（パスワード再生成）
 
 ---
 
+### 📄 ユーザー管理
+
 #### `generate-user-list.sh`
-Generate formatted user credential list for distribution.
+ユーザー資格情報リストの生成
 
-**Usage:**
+**用途**: ワークショップ参加者への配布資料作成
+
+**実行タイミング**: プロビジョニング完了後
+
+**使用方法**:
 ```bash
-./scripts/generate-user-list.sh [markdown|html|table]
-```
+# Markdown形式
+./scripts/generate-user-list.sh markdown
 
-**Formats:**
-- `markdown` - Markdown file (default)
-- `html` - HTML file with styling
-- `table` - Plain text table
-
-**Output:**
-- `artifacts/workshop-user-list.[md|html|txt]`
-
-**Example:**
-```bash
-# Generate HTML version
+# HTML形式（推奨）
 ./scripts/generate-user-list.sh html
 
-# Open in browser
-open artifacts/workshop-user-list.html
+# テキスト表形式
+./scripts/generate-user-list.sh table
 ```
 
-## Typical Workflows
+**出力先**:
+- `artifacts/workshop-user-list.md`
+- `artifacts/workshop-user-list.html`
+- `artifacts/workshop-user-list.txt`
 
-### Complete New Workshop Setup
+---
+
+## 🎯 推奨ワークフロー
+
+### 初回セットアップ（本番）
 
 ```bash
-# 1. Configure inventory and vault
-cp ansible/inventory/example/hosts.yml ansible/inventory/production/hosts.yml
-vim ansible/inventory/production/hosts.yml
+# 1. GitHubへのpush
+./scripts/setup-git.sh
 
-cp ansible/group_vars/vault.example.yml ansible/group_vars/vault.yml
+# 2. 設定ファイル編集
+vim ansible/inventory/production/hosts.yml
 vim ansible/group_vars/vault.yml
 ansible-vault encrypt ansible/group_vars/vault.yml
 
-# 2. Login to OpenShift
-oc login https://api.your-cluster.com:6443
-
-# 3. Run initial setup
+# 3. プロビジョニング
 ./scripts/initial-setup.sh
 
-# 4. Generate user list for distribution
-./scripts/generate-user-list.sh html
-
-# 5. Check status
-./scripts/status-check.sh
-```
-
-### Reset Workshop for New Session
-
-```bash
-# Full reset (new passwords)
-./scripts/reset-gitops.sh full
-
-# Generate new user list
+# 4. ユーザーリスト生成
 ./scripts/generate-user-list.sh html
 ```
 
-### Cleanup Workshop Resources
+---
+
+### テスト実行
 
 ```bash
-# Remove only user resources
-./scripts/cleanup-gitops.sh users
+# 1. GitHubへのpush（初回のみ）
+./scripts/setup-git.sh
 
-# Remove everything except GitOps Operator
-./scripts/cleanup-gitops.sh all
+# 2. テスト設定確認
+vim ansible/inventory/test/hosts.yml
 
-# Complete cleanup including Root Application
-export CLEANUP_ROOT=true
+# 3. フルテスト実行
+./scripts/test-full.sh
+
+# 4. ステータス確認
+./scripts/status-check.sh
+
+# 5. クリーンアップ
 ./scripts/cleanup-gitops.sh all
 ```
 
-### Troubleshooting
+---
+
+### 日常運用
 
 ```bash
-# Check current status
+# ステータス確認
 ./scripts/status-check.sh
 
-# Watch Application sync
-oc get applications -n openshift-gitops --watch
+# ユーザーリスト再生成
+./scripts/generate-user-list.sh html
 
-# Reset just the Applications
+# 環境リセット
 ./scripts/reset-gitops.sh applications
+
+# クリーンアップ
+./scripts/cleanup-gitops.sh users
 ```
 
-## Environment Variables
+---
 
-### `initial-setup.sh`
-- `INVENTORY` - Path to inventory file (default: `ansible/inventory/production/hosts.yml`)
+## 📋 スクリプト比較表
 
-### `cleanup-gitops.sh`
-- `CLEANUP_ROOT` - Set to `true` to also delete Root Application (default: `false`)
+| スクリプト | 用途 | 対象環境 | 所要時間 | GitOps | 対話型 |
+|-----------|------|---------|---------|--------|--------|
+| setup-git.sh | Git初期設定 | - | 1分 | - | ✓ |
+| initial-setup.sh | 本番初回セットアップ | 本番 | 20-30分 | ✓ | ✓ |
+| test-full.sh | 完全テスト | テスト | 20-30分 | ✓ | ✓ |
+| test-quick-start.sh | クイックテスト | テスト | 20-30分 | ✓ | ✓ |
+| test-without-gitops.sh | 最小テスト | テスト | 5分 | ✗ | ✓ |
+| status-check.sh | 状態確認 | 両方 | 10秒 | - | - |
+| cleanup-gitops.sh | リソース削除 | 両方 | 5-15分 | - | ✓ |
+| reset-gitops.sh | 環境リセット | 両方 | 20-40分 | ✓ | ✓ |
+| generate-user-list.sh | 資格情報リスト | 両方 | 5秒 | - | - |
 
-### `generate-user-list.sh`
-- `CSV_FILE` - Path to user credentials CSV (default: `artifacts/workshop-users.csv`)
+---
 
-## Logs
+## 🚨 よくある質問
 
-All scripts save logs to `artifacts/` directory:
-- `initial-setup-YYYYMMDD-HHMMSS.log`
-- `cleanup-gitops-YYYYMMDD-HHMMSS.log`
-- `reset-gitops-YYYYMMDD-HHMMSS.log`
+### Q: どのテストスクリプトを使えばいい？
 
-Review logs for detailed execution information.
+**A**: 基本的に `test-full.sh` を使用してください。GitOpsを含む完全なテストが実行されます。
 
-## Prerequisites
+---
 
-All scripts require:
-- `oc` CLI installed and authenticated
-- OpenShift cluster with cluster-admin access
+### Q: GitHubにpushできない場合は？
 
-Additional requirements per script:
-- `initial-setup.sh`: ansible-playbook, htpasswd
-- `reset-gitops.sh`: ansible-playbook
-- `generate-user-list.sh`: jq (optional, for HTML format)
+**A**: `test-without-gitops.sh` で最小限のテストが可能ですが、GitOps機能はテストできません。
 
-## Security Notes
+---
 
-- All scripts require confirmation before destructive operations
-- User credentials CSV has 0600 permissions
-- Vault files should be encrypted with `ansible-vault encrypt`
-- Generated user lists should be distributed securely
-- Clean up generated credential files after distribution
+### Q: テスト後のクリーンアップは？
 
-## Getting Help
+**A**: `cleanup-gitops.sh all` ですべて削除できます。Root Applicationも削除する場合は `export CLEANUP_ROOT=true` を先に実行してください。
 
-For issues or questions:
-1. Check script logs in `artifacts/`
-2. Run `status-check.sh` to diagnose environment state
-3. Review [../docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md)
-4. Contact workshop administrator
+---
+
+### Q: ユーザー数を変更したい
+
+**A**: 
+```bash
+ansible-playbook ansible/playbooks/bootstrap.yml \
+  -i ansible/inventory/test/hosts.yml \
+  -e workshop_user_count=5
+```
+
+---
+
+### Q: パスワードを再生成せずに環境を作り直したい
+
+**A**: `reset-gitops.sh applications` を使用してください。
+
+---
+
+## 🔧 トラブルシューティング
+
+### スクリプトが見つからない
+
+```bash
+# スクリプトディレクトリに移動
+cd /path/to/workshop-provisioning
+
+# スクリプトを実行
+./scripts/status-check.sh
+```
+
+### 権限エラー
+
+```bash
+# 実行権限付与
+chmod +x scripts/*.sh
+```
+
+### ログ確認
+
+すべてのスクリプトは `artifacts/` にログを保存します:
+```bash
+ls -lt artifacts/*.log | head -5
+tail -f artifacts/<latest-log>
+```
+
+---
+
+## 📚 関連ドキュメント
+
+- [../README.md](../README.md) - プロジェクト概要
+- [../docs/OPERATIONS.md](../docs/OPERATIONS.md) - 運用ガイド
+- [../docs/QUICK_REFERENCE.md](../docs/QUICK_REFERENCE.md) - コマンドリファレンス
+- [../docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md) - トラブルシューティング
+- [../TEST_RUN.md](../TEST_RUN.md) - テスト実行詳細手順
