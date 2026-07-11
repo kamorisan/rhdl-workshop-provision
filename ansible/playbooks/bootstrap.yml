@@ -47,5 +47,5 @@
           - "Workshop provisioning completed!"
           - "GitOps Console: https://{{ gitops_console_url | default('openshift-gitops-server-openshift-gitops.apps.your-cluster.com') }}"
           - "Dev Spaces Dashboard: https://{{ devspaces_dashboard_url | default('devspaces.apps.your-cluster.com') }}"
-          - "User credentials: {{ workshop.credentials_output }}"
+          - "User credentials: {{ workshop.credentials_output | default('./artifacts/workshop-users.csv') }}"
       tags: always

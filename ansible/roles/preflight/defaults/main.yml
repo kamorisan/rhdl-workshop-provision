@@ -14,3 +14,21 @@ per_user_storage: 10  # 10Gi in GB
 platform_cpu: 4  # Dev Spaces + MTA + Solution Server
 platform_memory: 16  # GB
 platform_storage: 20  # GB
+
+# Default namespaces (can be overridden by group_vars)
+devspaces:
+  operator_namespace: "openshift-devspaces"
+
+mta:
+  operator_namespace: "openshift-mta"
+
+workshop:
+  user_count: 10
+  username_prefix: "user"
+  namespace_suffix: "-dev"
+
+gitops:
+  repo_url: ""
+
+llm:
+  api_base: ""

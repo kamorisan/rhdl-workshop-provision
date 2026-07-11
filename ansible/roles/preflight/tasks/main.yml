@@ -8,7 +8,7 @@
 - name: Preflight - Display cluster info
   ansible.builtin.debug:
     msg:
-      - "Cluster version: {{ cluster_info.version.kubernetes }}"
+      - "Cluster version: {{ cluster_info.version.server.kubernetes.gitVersion }}"
       - "API URL: {{ cluster_api_url }}"
 
 - name: Preflight - Check cluster-admin permissions
@@ -34,9 +34,19 @@
     msg: "Current user does not have cluster-admin permissions. Cannot list ClusterRoles."
   when: clusterrole_check is failed
 
+- name: Preflight - Get OpenShift ClusterVersion
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: clusterversion_info
+  failed_when: clusterversion_info.resources | length == 0
+
 - name: Preflight - Check OpenShift version
   ansible.builtin.set_fact:
-    openshift_version: "{{ cluster_info.version.kubernetes | regex_replace('^v', '') }}"
+    openshift_version: "{{ clusterversion_info.resources[0].status.desired.version }}"
+    kubernetes_version: "{{ cluster_info.version.server.kubernetes.gitVersion | regex_replace('^v', '') }}"
 
 - name: Preflight - Validate minimum OpenShift version
   ansible.builtin.assert:
