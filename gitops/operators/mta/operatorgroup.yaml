@@ -6,6 +6,4 @@ metadata:
   namespace: openshift-mta
   annotations:
     argocd.argoproj.io/sync-wave: "-80"
-spec:
-  targetNamespaces:
-    - openshift-mta
+spec: {}
