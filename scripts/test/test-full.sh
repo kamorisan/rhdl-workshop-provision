@@ -5,6 +5,10 @@
 
 set -e
 
+# Script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║  Workshop Provisioning Test - 2 Users                          ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
@@ -38,7 +42,7 @@ fi
 
 echo ""
 echo "Installing Ansible collections..."
-ansible-galaxy collection install -r ansible/requirements.yml --force
+ansible-galaxy collection install -r "$PROJECT_ROOT/ansible/requirements.yml" --force
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -46,8 +50,8 @@ echo "║  Step 1: Preflight Checks                                      ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-ansible-playbook ansible/playbooks/bootstrap.yml \
-    -i ansible/inventory/test/hosts.yml \
+ansible-playbook "$PROJECT_ROOT/ansible/playbooks/bootstrap.yml" \
+    -i "$PROJECT_ROOT/ansible/inventory/test/hosts.yml" \
     --tags preflight
 
 echo ""
@@ -71,8 +75,8 @@ echo "You can monitor progress in another terminal:"
 echo "  watch -n 5 'oc get applications -n openshift-gitops'"
 echo ""
 
-ansible-playbook ansible/playbooks/bootstrap.yml \
-    -i ansible/inventory/test/hosts.yml \
+ansible-playbook "$PROJECT_ROOT/ansible/playbooks/bootstrap.yml" \
+    -i "$PROJECT_ROOT/ansible/inventory/test/hosts.yml" \
     -e solution_server_enabled=false \
     -e workshop_user_count=2
 
@@ -84,7 +88,7 @@ echo ""
 
 sleep 10  # Wait for resources to settle
 
-./scripts/status-check.sh
+"$PROJECT_ROOT/scripts/status-check.sh"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -93,14 +97,14 @@ echo "╚═══════════════════════�
 echo ""
 
 # Display user credentials
-if [ -f "artifacts/workshop-users.csv" ]; then
+if [ -f "$PROJECT_ROOT/artifacts/workshop-users.csv" ]; then
     echo "User Credentials:"
-    cat artifacts/workshop-users.csv
+    cat "$PROJECT_ROOT/artifacts/workshop-users.csv"
     echo ""
 
     # Generate HTML user list
     echo "Generating user list..."
-    ./scripts/generate-user-list.sh html
+    "$PROJECT_ROOT/scripts/generate-user-list.sh" html
     echo "✓ User list: artifacts/workshop-user-list.html"
     echo ""
 fi
@@ -127,5 +131,5 @@ echo "3. Monitor Applications:"
 echo "   oc get applications -n openshift-gitops"
 echo ""
 echo "4. Cleanup when done:"
-echo "   ./scripts/cleanup-gitops.sh all"
+echo "   $PROJECT_ROOT/scripts/cleanup-gitops.sh all"
 echo ""

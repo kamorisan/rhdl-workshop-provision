@@ -5,10 +5,17 @@
 
 set -e
 
+# Script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║  Git Repository Setup for GitOps                               ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
+
+# Change to project root
+cd "$PROJECT_ROOT"
 
 # Check if already a git repo
 if [ -d ".git" ]; then

@@ -6,6 +6,10 @@
 
 set -e
 
+# Script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║  Workshop Provisioning - Limited Test (No GitOps)             ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
@@ -35,7 +39,7 @@ echo ""
 
 # Install Ansible collections
 echo "Installing Ansible collections..."
-ansible-galaxy collection install -r ansible/requirements.yml --force
+ansible-galaxy collection install -r "$PROJECT_ROOT/ansible/requirements.yml" --force
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -43,8 +47,8 @@ echo "║  Step 1: Preflight Checks                                      ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-ansible-playbook ansible/playbooks/bootstrap.yml \
-    -i ansible/inventory/test/hosts.yml \
+ansible-playbook "$PROJECT_ROOT/ansible/playbooks/bootstrap.yml" \
+    -i "$PROJECT_ROOT/ansible/inventory/test/hosts.yml" \
     --tags preflight
 
 echo ""
@@ -53,8 +57,8 @@ echo "║  Step 2: Create Users (htpasswd)                               ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-ansible-playbook ansible/playbooks/users.yml \
-    -i ansible/inventory/test/hosts.yml
+ansible-playbook "$PROJECT_ROOT/ansible/playbooks/users.yml" \
+    -i "$PROJECT_ROOT/ansible/inventory/test/hosts.yml"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -62,9 +66,9 @@ echo "║  Test Complete (Limited)                                       ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-if [ -f "artifacts/workshop-users.csv" ]; then
+if [ -f "$PROJECT_ROOT/artifacts/workshop-users.csv" ]; then
     echo "✓ User credentials created:"
-    cat artifacts/workshop-users.csv
+    cat "$PROJECT_ROOT/artifacts/workshop-users.csv"
     echo ""
 fi
 

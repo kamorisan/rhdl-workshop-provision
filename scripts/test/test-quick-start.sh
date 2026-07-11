@@ -5,14 +5,19 @@
 
 set -e
 
+# Script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║  Workshop Provisioning - Quick Test                            ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check current directory
-if [ ! -f "ansible/playbooks/bootstrap.yml" ]; then
-    echo "Error: Please run this script from workshop-provisioning directory"
+# Check project structure
+if [ ! -f "$PROJECT_ROOT/ansible/playbooks/bootstrap.yml" ]; then
+    echo "Error: Cannot find ansible/playbooks/bootstrap.yml"
+    echo "Project root: $PROJECT_ROOT"
     exit 1
 fi
 
@@ -28,7 +33,7 @@ echo ""
 
 # Install Ansible collections
 echo "Installing Ansible collections..."
-ansible-galaxy collection install -r ansible/requirements.yml --force
+ansible-galaxy collection install -r "$PROJECT_ROOT/ansible/requirements.yml" --force
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -36,8 +41,8 @@ echo "║  Step 1: Preflight Checks                                      ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-ansible-playbook ansible/playbooks/bootstrap.yml \
-    -i ansible/inventory/test/hosts.yml \
+ansible-playbook "$PROJECT_ROOT/ansible/playbooks/bootstrap.yml" \
+    -i "$PROJECT_ROOT/ansible/inventory/test/hosts.yml" \
     --tags preflight
 
 echo ""
@@ -54,8 +59,8 @@ echo "║  Step 2: Provisioning (2 users, no Solution Server)            ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-ansible-playbook ansible/playbooks/bootstrap.yml \
-    -i ansible/inventory/test/hosts.yml \
+ansible-playbook "$PROJECT_ROOT/ansible/playbooks/bootstrap.yml" \
+    -i "$PROJECT_ROOT/ansible/inventory/test/hosts.yml" \
     -e solution_server_enabled=false \
     -e workshop_user_count=2
 
@@ -65,7 +70,7 @@ echo "║  Step 3: Verification                                          ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-./scripts/status-check.sh
+"$PROJECT_ROOT/scripts/status-check.sh"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -73,16 +78,16 @@ echo "║  Test Complete!                                                ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-if [ -f "artifacts/workshop-users.csv" ]; then
+if [ -f "$PROJECT_ROOT/artifacts/workshop-users.csv" ]; then
     echo "User credentials:"
-    cat artifacts/workshop-users.csv
+    cat "$PROJECT_ROOT/artifacts/workshop-users.csv"
     echo ""
 fi
 
 echo "Next steps:"
-echo "  1. Generate user list: ./scripts/generate-user-list.sh html"
+echo "  1. Generate user list: $PROJECT_ROOT/scripts/generate-user-list.sh html"
 echo "  2. Monitor Applications: oc get applications -n openshift-gitops --watch"
 echo "  3. Test user login: oc login -u user01 -p <password>"
-echo "  4. Cleanup when done: ./scripts/cleanup-gitops.sh all"
+echo "  4. Cleanup when done: $PROJECT_ROOT/scripts/cleanup-gitops.sh all"
 echo ""
 
