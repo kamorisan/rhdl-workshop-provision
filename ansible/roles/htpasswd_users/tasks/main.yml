@@ -25,16 +25,26 @@
     suffix: htpasswd
   register: htpasswd_tmpdir
 
-- name: Generate htpasswd entries
-  community.crypto.htpasswd:
-    path: "{{ htpasswd_tmpdir.path }}/workshop-htpasswd"
-    name: "{{ item.username }}"
-    password: "{{ user_passwords[item.username] }}"
-    crypt_scheme: bcrypt
-    create: true
-    mode: '0600'
+- name: Generate htpasswd entries using htpasswd command
+  ansible.builtin.shell: |
+    htpasswd -bBc {{ htpasswd_tmpdir.path }}/workshop-htpasswd.tmp "{{ item.username }}" "{{ user_passwords[item.username] }}"
+    if [ -f "{{ htpasswd_tmpdir.path }}/workshop-htpasswd" ]; then
+      cat {{ htpasswd_tmpdir.path }}/workshop-htpasswd.tmp >> {{ htpasswd_tmpdir.path }}/workshop-htpasswd
+      rm {{ htpasswd_tmpdir.path }}/workshop-htpasswd.tmp
+    else
+      mv {{ htpasswd_tmpdir.path }}/workshop-htpasswd.tmp {{ htpasswd_tmpdir.path }}/workshop-htpasswd
+    fi
+  args:
+    creates: "{{ htpasswd_tmpdir.path }}/workshop-htpasswd"
   loop: "{{ workshop_users }}"
   no_log: true
+  loop_control:
+    index_var: idx
+
+- name: Set correct permissions on htpasswd file
+  ansible.builtin.file:
+    path: "{{ htpasswd_tmpdir.path }}/workshop-htpasswd"
+    mode: '0600'
 
 - name: Read htpasswd file content
   ansible.builtin.slurp:
