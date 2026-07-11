@@ -62,7 +62,7 @@
   until:
     - gitops_csv.resources | length > 0
     - gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | list | length > 0
-    - gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | map(attribute='status.phase') | select('equalto', 'Succeeded') | list | length > 0
+    - gitops_csv.resources | selectattr('metadata.name', 'match', '^openshift-gitops-operator') | selectattr('status.phase', 'defined') | selectattr('status.phase', 'equalto', 'Succeeded') | list | length > 0
   retries: 60
   delay: 10
 

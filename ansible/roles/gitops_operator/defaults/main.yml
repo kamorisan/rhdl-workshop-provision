@@ -1,0 +1,11 @@
+---
+# GitOps Operator defaults (can be overridden by group_vars)
+gitops:
+  operator_namespace: "openshift-gitops-operator"
+  instance_namespace: "openshift-gitops"
+  operator_channel: "latest"
+  install_plan_approval: "Automatic"
+  repo_url: ""
+  repo_revision: "main"
+  repo_path: "gitops/bootstrap"
+  auth_type: "none"
