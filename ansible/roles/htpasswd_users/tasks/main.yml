@@ -19,6 +19,13 @@
     - vault_workshop_passwords is defined
   no_log: true
 
+- name: Use fixed password for all users
+  ansible.builtin.set_fact:
+    user_passwords: "{{ user_passwords | default({}) | combine({item.username: workshop.fixed_password}) }}"
+  loop: "{{ workshop_users }}"
+  when: workshop.password_mode == "fixed"
+  no_log: true
+
 - name: Create temporary htpasswd file directory
   ansible.builtin.tempfile:
     state: directory
