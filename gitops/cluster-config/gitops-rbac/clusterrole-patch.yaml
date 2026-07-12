@@ -1,0 +1,77 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workshop-gitops-extensions
+  annotations:
+    argocd.argoproj.io/sync-wave: "-100"
+rules:
+  # Dev Spaces CheCluster permissions
+  - apiGroups:
+      - org.eclipse.che
+    resources:
+      - checlusters
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - org.eclipse.che
+    resources:
+      - checlusters/status
+      - checlusters/finalizers
+    verbs:
+      - get
+      - patch
+      - update
+
+  # MTA Tackle permissions
+  - apiGroups:
+      - tackle.konveyor.io
+    resources:
+      - tackles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tackle.konveyor.io
+    resources:
+      - tackles/status
+      - tackles/finalizers
+    verbs:
+      - get
+      - patch
+      - update
+
+  # DevWorkspace permissions
+  - apiGroups:
+      - workspace.devfile.io
+    resources:
+      - devworkspaces
+      - devworkspacetemplates
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - workspace.devfile.io
+    resources:
+      - devworkspaces/status
+      - devworkspacetemplates/status
+    verbs:
+      - get
+      - patch
+      - update
