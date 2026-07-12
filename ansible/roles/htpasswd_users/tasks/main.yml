@@ -32,17 +32,17 @@
     suffix: htpasswd
   register: htpasswd_tmpdir
 
-- name: Generate htpasswd entries using htpasswd command
-  ansible.builtin.shell: |
-    {% if loop.index0 == 0 %}
-    htpasswd -bBc {{ htpasswd_tmpdir.path }}/workshop-htpasswd "{{ item.username }}" "{{ user_passwords[item.username] }}"
-    {% else %}
-    htpasswd -bB {{ htpasswd_tmpdir.path }}/workshop-htpasswd "{{ item.username }}" "{{ user_passwords[item.username] }}"
-    {% endif %}
-  loop: "{{ workshop_users }}"
+- name: Create initial htpasswd file with first user
+  ansible.builtin.command:
+    cmd: htpasswd -bBc {{ htpasswd_tmpdir.path }}/workshop-htpasswd "{{ workshop_users[0].username }}" "{{ user_passwords[workshop_users[0].username] }}"
   no_log: true
-  loop_control:
-    extended: yes
+
+- name: Add remaining users to htpasswd file
+  ansible.builtin.command:
+    cmd: htpasswd -bB {{ htpasswd_tmpdir.path }}/workshop-htpasswd "{{ item.username }}" "{{ user_passwords[item.username] }}"
+  loop: "{{ workshop_users[1:] }}"
+  no_log: true
+  when: workshop_users | length > 1
 
 - name: Set correct permissions on htpasswd file
   ansible.builtin.file:
