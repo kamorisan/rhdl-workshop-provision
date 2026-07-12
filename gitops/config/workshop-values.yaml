@@ -27,7 +27,7 @@ workspace:
   cpuRequest: "500m"
   cpuLimit: "2000m"
   memoryRequest: "2Gi"
-  memoryLimit: "8Gi"
+  memoryLimit: "4Gi"
   storage: "10Gi"
   autoStopTimeoutMinutes: 60
 
