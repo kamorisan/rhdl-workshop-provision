@@ -16,6 +16,8 @@ spec:
     - namespace: 'workshop-system'
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
     - group: 'config.openshift.io'
       kind: OAuth
     - group: 'rbac.authorization.k8s.io'
