@@ -75,3 +75,18 @@ rules:
       - get
       - patch
       - update
+
+  # ResourceQuota and LimitRange permissions for user namespaces
+  - apiGroups:
+      - ""
+    resources:
+      - resourcequotas
+      - limitranges
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
