@@ -4,4 +4,4 @@ kind: Kustomization
 
 resources:
   - gitops-rbac
-  - oauth
+  - oauth/oauth.yaml
