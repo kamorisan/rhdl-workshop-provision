@@ -176,3 +176,10 @@ spec:
       - ServerSideApply=true
       - PrunePropagationPolicy=foreground
       - PruneLast=true
+  ignoreDifferences:
+    - group: workspace.devfile.io
+      kind: DevWorkspace
+      jsonPointers:
+        - /status
+        - /metadata/uid
+        - /metadata/generation
