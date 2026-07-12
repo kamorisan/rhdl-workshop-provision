@@ -181,5 +181,8 @@ spec:
       kind: DevWorkspace
       jsonPointers:
         - /status
+        - /spec/started
         - /metadata/uid
         - /metadata/generation
+        - /metadata/resourceVersion
+        - /metadata/managedFields
