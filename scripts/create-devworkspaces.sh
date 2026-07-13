@@ -50,6 +50,9 @@ metadata:
 spec:
   started: false
   routingClass: che
+  contributions:
+    - name: editor
+      uri: che-incubator/che-code/latest
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace
