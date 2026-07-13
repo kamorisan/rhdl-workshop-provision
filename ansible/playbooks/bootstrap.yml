@@ -40,6 +40,9 @@
       tags: [secrets, repository]
       when: demo_repository_private | default(false) | bool
 
+    - role: devworkspaces
+      tags: [devworkspaces, workspaces]
+
   post_tasks:
     - name: Display workshop endpoints
       ansible.builtin.debug:

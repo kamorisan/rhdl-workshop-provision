@@ -1,0 +1,97 @@
+---
+- name: Get user UIDs for DevWorkspace creator labels
+  kubernetes.core.k8s_info:
+    api_version: user.openshift.io/v1
+    kind: User
+    name: "{{ item.username }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  register: user_info
+  loop: "{{ workshop_users }}"
+
+- name: Create user UID mapping
+  ansible.builtin.set_fact:
+    user_uid_map: "{{ user_uid_map | default({}) | combine({item.item.username: item.resources[0].metadata.uid}) }}"
+  loop: "{{ user_info.results }}"
+  when: item.resources | length > 0
+
+- name: Delete existing DevWorkspaces (for recreating with correct creator UID)
+  kubernetes.core.k8s:
+    state: absent
+    api_version: workspace.devfile.io/v1alpha2
+    kind: DevWorkspace
+    name: spring-to-quarkus
+    namespace: "{{ item.namespace }}"
+    validate_certs: "{{ cluster_validate_certs }}"
+  loop: "{{ workshop_users }}"
+
+- name: Wait for DevWorkspace deletion
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Create DevWorkspaces with correct creator UID
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: workspace.devfile.io/v1alpha2
+      kind: DevWorkspace
+      metadata:
+        name: spring-to-quarkus
+        namespace: "{{ item.namespace }}"
+        labels:
+          controller.devfile.io/creator: "{{ user_uid_map[item.username] }}"
+          workshop.user: "{{ item.username }}"
+      spec:
+        started: true
+        routingClass: che
+        template:
+          attributes:
+            controller.devfile.io/storage-type: per-workspace
+          projects:
+            - name: spring-petclinic
+              git:
+                remotes:
+                  origin: "{{ demo_repository_url }}"
+                checkoutFrom:
+                  revision: "{{ demo_repository_revision }}"
+          components:
+            - name: dev-tools
+              container:
+                image: quay.io/devfile/universal-developer-image:ubi8-latest
+                memoryRequest: "{{ devspaces.memory_request }}"
+                memoryLimit: "{{ devspaces.memory_limit }}"
+                cpuRequest: "{{ devspaces.cpu_request }}"
+                cpuLimit: "{{ devspaces.cpu_limit }}"
+                mountSources: true
+                volumeMounts:
+                  - name: m2
+                    path: /home/user/.m2
+                env:
+                  - name: MAVEN_OPTS
+                    value: "-Xmx1g"
+            - name: m2
+              volume:
+                size: "{{ devspaces.workspace_storage }}"
+          commands:
+            - id: maven-build
+              exec:
+                component: dev-tools
+                commandLine: mvn clean package -DskipTests
+                workingDir: ${PROJECT_SOURCE}/spring-petclinic
+            - id: maven-test
+              exec:
+                component: dev-tools
+                commandLine: mvn test
+                workingDir: ${PROJECT_SOURCE}/spring-petclinic
+            - id: run-app
+              exec:
+                component: dev-tools
+                commandLine: mvn spring-boot:run
+                workingDir: ${PROJECT_SOURCE}/spring-petclinic
+  loop: "{{ workshop_users }}"
+
+- name: Display DevWorkspace creation summary
+  ansible.builtin.debug:
+    msg:
+      - "Created {{ workshop.user_count }} DevWorkspaces with correct creator UIDs"
+      - "Each user can access their workspace in Dev Spaces Dashboard"
