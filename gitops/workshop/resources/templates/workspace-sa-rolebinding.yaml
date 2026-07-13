@@ -1,0 +1,29 @@
+{{- range $i := untilStep 1 (add1 .Values.workshop.userCount | int) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $.Values.workshop.usernamePrefix $id }}
+{{- $devNamespace := printf "%s%s" $username $.Values.workshop.namespaceSuffix }}
+{{- $devspacesNamespace := printf "%s-devspaces" $username }}
+---
+# Allow workspace ServiceAccounts from user-devspaces to access user-dev namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workspace-sa-access
+  namespace: {{ $devNamespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    workshop.user: {{ $username }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  # Grant access to all ServiceAccounts in user-devspaces namespace
+  # This includes dynamically created workspace ServiceAccounts
+  - kind: Group
+    apiGroup: rbac.authorization.k8s.io
+    name: system:serviceaccounts:{{ $devspacesNamespace }}
+{{- end }}
