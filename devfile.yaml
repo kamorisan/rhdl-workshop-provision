@@ -23,7 +23,7 @@ projects:
 components:
   - name: dev-tools
     container:
-      image: quay.io/devfile/universal-developer-image:ubi8-latest
+      image: registry.redhat.io/devspaces/udi-rhel9:latest
       memoryRequest: 2Gi
       memoryLimit: 4Gi
       cpuRequest: 500m
@@ -84,15 +84,7 @@ commands:
         #!/bin/bash
         set -e
 
-        # Determine code CLI path
-        if [ -x "/checode/code" ]; then
-          CODE_CMD="/checode/code"
-        elif command -v code >/dev/null 2>&1; then
-          CODE_CMD="code"
-        else
-          echo "⚠️  VS Code CLI not found, skipping extension install"
-          exit 0
-        fi
+        CODE_CMD="code"
 
         echo "📦 Installing MTA VS Code extension..."
 
