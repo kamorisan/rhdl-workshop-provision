@@ -1,10 +1,4 @@
 ---
-# NOTE: This is a TEMPLATE that requires verification against actual MTA CRD
-# Run the following to verify fields on your cluster:
-#   oc explain tackle.spec --recursive
-#   oc get crd tackles.tackle.konveyor.io -o yaml
-#
-# Adjust the spec fields according to your MTA Operator version's CRD
 apiVersion: tackle.konveyor.io/v1alpha1
 kind: Tackle
 metadata:
@@ -12,34 +6,32 @@ metadata:
   namespace: openshift-mta
   annotations:
     argocd.argoproj.io/sync-wave: "-20"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
 spec:
-  # Verify these fields with: oc explain tackle.spec --recursive
+  # Authentication - enabled for multi-user workshop
+  feature_auth_required: true
 
-  # Solution Server (Developer Lightspeed) configuration
-  # Field names may vary - check CRD on your cluster
-  kai:
-    enabled: true
-
-  # LLM Provider configuration - field names may differ
-  # Possible field names: kai_llm_provider, llmProvider, aiProvider
-  # Uncomment and adjust based on actual CRD:
-  # kai_llm_provider: openai
-  # kai_llm_model: gpt-4
-  # kai_llm_baseurl: https://api.openai.com/v1
-
-  # Secret reference for LLM API keys
-  # Field name may vary: kai_secret_name, llmSecretName, aiSecretRef
-  # Uncomment and adjust:
-  # kai_secret_name: kai-api-keys
-
-  # Database configuration for Solution Server
-  # Check if separate DB fields exist or if embedded in kai config
-  # database:
-  #   volume:
-  #     capacity: 5Gi
-
-  # Hub configuration
+  # Storage configuration
   hub_database_volume_size: 10Gi
+  hub_bucket_volume_size: 100Gi
+  keycloak_database_data_volume_size: 1Gi
+  cache_data_volume_size: 100Gi
 
-  # Feature flags - verify available flags in your version
-  feature_auth_required: false  # Workshop mode - no auth required
+  # Analyzer resource limits - workshop with 10 users
+  analyzer_container_requests_memory: 4Gi
+  analyzer_container_limits_memory: 8Gi
+  analyzer_container_requests_cpu: "1"
+  analyzer_container_limits_cpu: "2"
+
+  # LLM Proxy configuration
+  # Note: LLM Secret must be created separately
+  # kai_llm_provider: openai
+  # kai_llm_baseurl: https://maas-rhdp.apps.maas.redhatworkshops.io/v1
+  # kai_secret_name: mta-llm-secret
+
+  # Solution Server - disabled initially for workshop Phase 1
+  # Enable in Phase 2 after participants understand basic MTA workflow
+  kai:
+    enabled: false
