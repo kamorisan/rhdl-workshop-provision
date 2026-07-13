@@ -23,7 +23,7 @@ projects:
 components:
   - name: dev-tools
     container:
-      image: registry.redhat.io/devspaces/udi-rhel9:latest
+      image: quay.io/devfile/universal-developer-image:ubi8-latest
       memoryRequest: 2Gi
       memoryLimit: 4Gi
       cpuRequest: 500m
@@ -76,29 +76,17 @@ commands:
         kind: run
         isDefault: false
 
-  # Install MTA VS Code extension
+  # Install MTA VS Code extension (manual command - run when needed)
   - id: install-mta-extension
     exec:
       component: dev-tools
       commandLine: |
         #!/bin/bash
-        set -e
-
-        CODE_CMD="code"
-
-        echo "📦 Installing MTA VS Code extension..."
-
-        # Download and install MTA extension from Open VSX
-        EXTENSION_URL="https://open-vsx.org/api/redhat/mta-vscode-extension/latest/file/redhat.mta-vscode-extension-latest.vsix"
-        TMP_VSIX="/tmp/mta-extension.vsix"
-
-        curl -sSL "$EXTENSION_URL" -o "$TMP_VSIX"
-        $CODE_CMD --install-extension "$TMP_VSIX" --force
-        rm -f "$TMP_VSIX"
-
-        echo "✅ MTA extension installed successfully"
+        echo "⚠️  MTA extension auto-install not supported yet"
+        echo "Please install manually from Extensions view in VS Code"
+        echo "Extension ID: redhat.mta-vscode-extension"
       workingDir: ${PROJECT_SOURCE}
-      label: "Install MTA Extension"
+      label: "Install MTA Extension Info"
       group:
         kind: run
         isDefault: false
@@ -133,7 +121,6 @@ commands:
         isDefault: true
 
 events:
-  # Execute auto-login and extension install after workspace starts
+  # Execute auto-login after workspace starts
   postStart:
     - oc-auto-login
-    - install-mta-extension
