@@ -7,7 +7,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Load configuration
 USER_COUNT=${USER_COUNT:-10}
 USERNAME_PREFIX=${USERNAME_PREFIX:-user}
-NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:-dev}
+NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:-devspaces}
 DEMO_REPO=${DEMO_REPO:-https://github.com/kamorisan/spring-to-quarkus-sample}
 DEMO_REVISION=${DEMO_REVISION:-main}
 
