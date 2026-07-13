@@ -1,4 +1,4 @@
-schemaVersion: 2.2.0
+schemaVersion: 2.3.0
 metadata:
   name: spring-to-quarkus-workshop
   displayName: Spring to Quarkus Migration Workshop
@@ -13,7 +13,7 @@ metadata:
   version: 1.0.0
 
 projects:
-  - name: spring-petclinic
+  - name: spring-to-quarkus-sample
     git:
       remotes:
         origin: https://github.com/kamorisan/spring-to-quarkus-sample
@@ -25,16 +25,17 @@ components:
     container:
       image: quay.io/devfile/universal-developer-image:ubi8-latest
       memoryRequest: 2Gi
-      memoryLimit: 4Gi
+      memoryLimit: 8Gi
       cpuRequest: 500m
       cpuLimit: 2000m
       mountSources: true
+      sourceMapping: /projects
       volumeMounts:
         - name: m2
           path: /home/user/.m2
       env:
         - name: MAVEN_OPTS
-          value: "-Xmx1g"
+          value: "-Xmx2g"
         # OpenShift API URL for auto-login
         - name: OCP_API_URL
           value: "https://api.cluster-59m78.59m78.sandbox1272.opentlc.com:6443"
@@ -76,26 +77,11 @@ commands:
         kind: run
         isDefault: false
 
-  # Install MTA VS Code extension (manual command - run when needed)
-  - id: install-mta-extension
-    exec:
-      component: dev-tools
-      commandLine: |
-        #!/bin/bash
-        echo "⚠️  MTA extension auto-install not supported yet"
-        echo "Please install manually from Extensions view in VS Code"
-        echo "Extension ID: redhat.mta-vscode-extension"
-      workingDir: ${PROJECT_SOURCE}
-      label: "Install MTA Extension Info"
-      group:
-        kind: run
-        isDefault: false
-
   - id: maven-build
     exec:
       component: dev-tools
       commandLine: mvn clean package -DskipTests
-      workingDir: ${PROJECT_SOURCE}/spring-petclinic
+      workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
       label: "Build"
       group:
         kind: build
@@ -105,7 +91,7 @@ commands:
     exec:
       component: dev-tools
       commandLine: mvn test
-      workingDir: ${PROJECT_SOURCE}/spring-petclinic
+      workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
       label: "Test"
       group:
         kind: test
@@ -114,7 +100,7 @@ commands:
     exec:
       component: dev-tools
       commandLine: mvn spring-boot:run
-      workingDir: ${PROJECT_SOURCE}/spring-petclinic
+      workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
       label: "Run Application"
       group:
         kind: run
