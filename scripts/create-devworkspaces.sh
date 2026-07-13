@@ -34,11 +34,15 @@ for i in $(seq -f "%02g" 1 ${USER_COUNT}); do
   oc delete devworkspace spring-to-quarkus -n ${NAMESPACE} --ignore-not-found=true
 
   # Login as the user to create workspace with correct creator
-  oc login --insecure-skip-tls-verify=true \
+  if ! oc login --insecure-skip-tls-verify=true \
     https://api.cluster-59m78.59m78.sandbox1272.opentlc.com:6443 \
-    -u ${USERNAME} -p ${PASSWORD} >/dev/null 2>&1
+    -u ${USERNAME} -p ${PASSWORD} >/dev/null 2>&1; then
+    echo "  ⚠️  Login failed for ${USERNAME}, skipping..."
+    continue
+  fi
 
   # Create DevWorkspace - webhook will auto-set creator to current user UID
+  # NOTE: Do NOT add contributions - Dev Spaces auto-adds default editor
   cat <<EOF | oc apply -f -
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
@@ -50,9 +54,6 @@ metadata:
 spec:
   started: false
   routingClass: che
-  contributions:
-    - name: editor
-      uri: che-incubator/che-code/latest
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace
