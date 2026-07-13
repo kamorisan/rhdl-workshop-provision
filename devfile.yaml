@@ -43,11 +43,6 @@ components:
     volume:
       size: 10Gi
 
-attributes:
-  .vscode/extensions.json:
-    recommendations:
-      - redhat.mta-vscode-extension
-
 commands:
   # Auto-login to OpenShift on workspace start
   - id: oc-auto-login
@@ -77,6 +72,21 @@ commands:
         fi
       workingDir: ${PROJECT_SOURCE}
       label: "Auto-login to OpenShift"
+      group:
+        kind: run
+        isDefault: false
+
+  # Install MTA VS Code extension
+  - id: install-mta-extension
+    exec:
+      component: dev-tools
+      commandLine: |
+        #!/bin/bash
+        echo "📦 Installing MTA VS Code extension..."
+        /checode/code-server --install-extension redhat.mta-vscode-extension || true
+        echo "✅ Extension installation requested"
+      workingDir: ${PROJECT_SOURCE}
+      label: "Install MTA Extension"
       group:
         kind: run
         isDefault: false
@@ -111,6 +121,7 @@ commands:
         isDefault: true
 
 events:
-  # Execute auto-login after workspace starts
+  # Execute auto-login and extension install after workspace starts
   postStart:
     - oc-auto-login
+    - install-mta-extension
