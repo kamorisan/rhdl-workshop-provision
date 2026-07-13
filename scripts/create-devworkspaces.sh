@@ -16,6 +16,7 @@ echo "Creating DevWorkspaces for ${USER_COUNT} users..."
 for i in $(seq -f "%02g" 1 ${USER_COUNT}); do
   USERNAME="${USERNAME_PREFIX}${i}"
   NAMESPACE="${USERNAME}-${NAMESPACE_SUFFIX}"
+  PASSWORD="${USER_PASSWORD:-openshift}"
 
   echo "Processing ${USERNAME}..."
 
@@ -29,10 +30,15 @@ for i in $(seq -f "%02g" 1 ${USER_COUNT}); do
 
   echo "  User UID: ${USER_UID}"
 
-  # Delete existing DevWorkspace if present
+  # Delete existing DevWorkspace if present (as admin)
   oc delete devworkspace spring-to-quarkus -n ${NAMESPACE} --ignore-not-found=true
 
-  # Create DevWorkspace with correct creator label
+  # Login as the user to create workspace with correct creator
+  oc login --insecure-skip-tls-verify=true \
+    https://api.cluster-59m78.59m78.sandbox1272.opentlc.com:6443 \
+    -u ${USERNAME} -p ${PASSWORD} >/dev/null 2>&1
+
+  # Create DevWorkspace - webhook will auto-set creator to current user UID
   cat <<EOF | oc apply -f -
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
@@ -40,7 +46,6 @@ metadata:
   name: spring-to-quarkus
   namespace: ${NAMESPACE}
   labels:
-    controller.devfile.io/creator: "${USER_UID}"
     workshop.user: "${USERNAME}"
 spec:
   started: false
@@ -94,9 +99,14 @@ EOF
   echo "  ✅ DevWorkspace created"
 done
 
+done
+
+# Restore admin login
+oc config use-context default/api-cluster-59m78-59m78-sandbox1272-opentlc-com:6443/kube:admin >/dev/null 2>&1
+
 echo ""
 echo "DevWorkspace creation completed!"
-echo "Waiting for workspaces to start..."
+echo "Waiting for workspaces to initialize..."
 sleep 10
 
 echo ""
