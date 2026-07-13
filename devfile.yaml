@@ -82,9 +82,29 @@ commands:
       component: dev-tools
       commandLine: |
         #!/bin/bash
+        set -e
+
+        # Determine code CLI path
+        if [ -x "/checode/code" ]; then
+          CODE_CMD="/checode/code"
+        elif command -v code >/dev/null 2>&1; then
+          CODE_CMD="code"
+        else
+          echo "⚠️  VS Code CLI not found, skipping extension install"
+          exit 0
+        fi
+
         echo "📦 Installing MTA VS Code extension..."
-        /checode/code-server --install-extension redhat.mta-vscode-extension || true
-        echo "✅ Extension installation requested"
+
+        # Download and install MTA extension from Open VSX
+        EXTENSION_URL="https://open-vsx.org/api/redhat/mta-vscode-extension/latest/file/redhat.mta-vscode-extension-latest.vsix"
+        TMP_VSIX="/tmp/mta-extension.vsix"
+
+        curl -sSL "$EXTENSION_URL" -o "$TMP_VSIX"
+        $CODE_CMD --install-extension "$TMP_VSIX" --force
+        rm -f "$TMP_VSIX"
+
+        echo "✅ MTA extension installed successfully"
       workingDir: ${PROJECT_SOURCE}
       label: "Install MTA Extension"
       group:
