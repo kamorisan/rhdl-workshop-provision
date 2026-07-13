@@ -43,7 +43,7 @@ metadata:
     controller.devfile.io/creator: "${USER_UID}"
     workshop.user: "${USERNAME}"
 spec:
-  started: true
+  started: false
   routingClass: che
   template:
     attributes:
