@@ -43,6 +43,11 @@ components:
     volume:
       size: 10Gi
 
+attributes:
+  .vscode/extensions.json:
+    recommendations:
+      - redhat.mta-vscode-extension
+
 commands:
   # Auto-login to OpenShift on workspace start
   - id: oc-auto-login
