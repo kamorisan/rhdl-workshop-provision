@@ -1,15 +1,15 @@
 schemaVersion: 2.2.0
 metadata:
-  name: spring-to-quarkus
+  name: spring-to-quarkus-workshop
   displayName: Spring to Quarkus Migration Workshop
-  description: Workshop environment for migrating Spring Boot applications to Quarkus
+  description: Workshop environment for migrating Spring Boot to Quarkus with auto OpenShift login
+  language: java
+  projectType: maven
   tags:
     - Java
     - Spring Boot
     - Quarkus
     - Migration
-  projectType: maven
-  language: java
   version: 1.0.0
 
 projects:
@@ -35,12 +35,47 @@ components:
       env:
         - name: MAVEN_OPTS
           value: "-Xmx1g"
+        # OpenShift API URL for auto-login
+        - name: OCP_API_URL
+          value: "https://api.cluster-59m78.59m78.sandbox1272.opentlc.com:6443"
 
   - name: m2
     volume:
       size: 10Gi
 
 commands:
+  # Auto-login to OpenShift on workspace start
+  - id: oc-auto-login
+    exec:
+      component: dev-tools
+      commandLine: |
+        #!/bin/bash
+        set -e
+
+        # Get username from workspace namespace (e.g., user01-devspaces -> user01)
+        USERNAME=$(echo "${DEVWORKSPACE_NAMESPACE}" | sed 's/-devspaces$//')
+        PASSWORD="openshift"
+
+        echo "🔐 Auto-login to OpenShift as ${USERNAME}..."
+
+        if oc login --insecure-skip-tls-verify=true \
+          "${OCP_API_URL}" \
+          -u "${USERNAME}" \
+          -p "${PASSWORD}" >/dev/null 2>&1; then
+          echo "✅ Logged in as ${USERNAME}"
+          echo "   Current project: $(oc project -q)"
+          echo ""
+          echo "You can now use 'oc' commands without manual login!"
+        else
+          echo "⚠️  Auto-login failed. You can manually login with:"
+          echo "   oc login --insecure-skip-tls-verify=true ${OCP_API_URL} -u ${USERNAME} -p openshift"
+        fi
+      workingDir: ${PROJECT_SOURCE}
+      label: "Auto-login to OpenShift"
+      group:
+        kind: run
+        isDefault: false
+
   - id: maven-build
     exec:
       component: dev-tools
@@ -69,3 +104,8 @@ commands:
       group:
         kind: run
         isDefault: true
+
+events:
+  # Execute auto-login after workspace starts
+  postStart:
+    - oc-auto-login
