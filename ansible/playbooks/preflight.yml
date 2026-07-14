@@ -1,0 +1,37 @@
+---
+# Preflight checks for workshop deployment
+# Validates cluster readiness and prerequisites
+
+- name: Workshop Deployment Preflight Checks
+  hosts: localhost
+  gather_facts: true
+
+  vars:
+    preflight_check_results: []
+
+  pre_tasks:
+    - name: Display preflight banner
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "Workshop Deployment Preflight Checks"
+          - "=============================================="
+          - "Cluster: {{ cluster_api_url | default('not configured') }}"
+          - "Users: {{ workshop.user_count | default(10) }}"
+          - ""
+
+  roles:
+    - role: preflight
+
+  post_tasks:
+    - name: Display preflight summary
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "=============================================="
+          - "Preflight Checks Summary"
+          - "=============================================="
+          - "✅ All checks passed!"
+          - ""
+          - "Ready to proceed with deployment."
+          - ""

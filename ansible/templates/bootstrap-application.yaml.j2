@@ -18,7 +18,7 @@ spec:
   source:
     repoURL: {{ gitops.repo_url }}
     targetRevision: {{ gitops.repo_revision }}
-    path: {{ gitops.repo_path }}
+    path: {{ gitops.repo_path }}/bootstrap
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ gitops.instance_namespace }}

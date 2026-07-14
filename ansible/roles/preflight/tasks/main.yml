@@ -8,7 +8,7 @@
 - name: Preflight - Display cluster info
   ansible.builtin.debug:
     msg:
-      - "Cluster version: {{ cluster_info.version.server.kubernetes.gitVersion }}"
+      - "Cluster version: {{ cluster_info.version.server.gitVersion | default('unknown') }}"
       - "API URL: {{ cluster_api_url }}"
 
 - name: Preflight - Check cluster-admin permissions
@@ -46,7 +46,7 @@
 - name: Preflight - Check OpenShift version
   ansible.builtin.set_fact:
     openshift_version: "{{ clusterversion_info.resources[0].status.desired.version }}"
-    kubernetes_version: "{{ cluster_info.version.server.kubernetes.gitVersion | regex_replace('^v', '') }}"
+    kubernetes_version: "{{ cluster_info.version.server.gitVersion | default('unknown') | regex_replace('^v', '') }}"
 
 - name: Preflight - Validate minimum OpenShift version
   ansible.builtin.assert:
