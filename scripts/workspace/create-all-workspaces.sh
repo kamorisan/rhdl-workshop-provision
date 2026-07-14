@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration from environment or defaults
 USER_COUNT=${USER_COUNT:-10}
 USERNAME_PREFIX=${USERNAME_PREFIX:-user}
-NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--dev}
+NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--devspaces}
 USER_PASSWORD=${USER_PASSWORD:-openshift}
 DEVFILE_URL=${DEVFILE_URL:-https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/devfile.yaml}
 
@@ -47,7 +47,14 @@ for i in $(seq 1 ${USER_COUNT}); do
   # Delete existing DevWorkspace (as cluster-admin)
   oc delete devworkspace spring-to-quarkus-workshop -n ${NAMESPACE} --ignore-not-found=true &>/dev/null 2>&1
 
-  # Create DevWorkspace (minimal structure like Dev Spaces UI creates)
+  # Download devfile content
+  DEVFILE_CONTENT=$(curl -sSfL ${DEVFILE_URL} 2>/dev/null)
+  if [ -z "$DEVFILE_CONTENT" ]; then
+    echo "  ❌ Failed to download devfile"
+    continue
+  fi
+
+  # Create DevWorkspace with full annotations (exactly like Dev Spaces UI)
   cat <<EOF | oc apply -f - >/dev/null 2>&1
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
@@ -57,14 +64,23 @@ metadata:
   labels:
     workshop.user: "${USERNAME}"
     workshop.type: "developer-lightspeed"
+  annotations:
+    che.eclipse.org/che-editor: che-incubator/che-code/latest
+    che.eclipse.org/devfile-source: |
+      scm:
+        repo: https://github.com/kamorisan/rhdl-workshop-provision.git
+        fileName: devfile.yaml
+      factory:
+        params: url=https://github.com/kamorisan/rhdl-workshop-provision
+    che.eclipse.org/devfile: |
+$(echo "$DEVFILE_CONTENT" | sed 's/^/      /')
 spec:
   started: false
   routingClass: che
-  template: {}
   contributions:
-    - name: ide
+    - name: editor
       kubernetes:
-        name: che-code-developer-lightspeed
+        name: che-code-spring-to-quarkus-workshop
 EOF
 
   if [ $? -eq 0 ]; then
