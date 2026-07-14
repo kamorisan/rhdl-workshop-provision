@@ -31,7 +31,7 @@ spec:
   # kai_llm_baseurl: https://maas-rhdp.apps.maas.redhatworkshops.io/v1
   # kai_secret_name: mta-llm-secret
 
-  # Solution Server - disabled initially for workshop Phase 1
-  # Enable in Phase 2 after participants understand basic MTA workflow
+  # Solution Server - enabled for Developer Lightspeed features
+  # Note: Requires kai-api-keys Secret with OPENAI_API_BASE and OPENAI_API_KEY
   kai:
-    enabled: false
+    enabled: true
