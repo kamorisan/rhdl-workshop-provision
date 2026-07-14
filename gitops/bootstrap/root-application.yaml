@@ -61,34 +61,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: workshop-platform-namespaces
-  namespace: openshift-gitops
-  annotations:
-    argocd.argoproj.io/sync-wave: "-40"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: workshop-platform
-  source:
-    repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
-    targetRevision: main
-    path: gitops/platform-namespaces
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: openshift-gitops
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      allowEmpty: true
-    syncOptions:
-      - ServerSideApply=true
-      - PrunePropagationPolicy=foreground
-      - PruneLast=true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: workshop-platform-instances
   namespace: openshift-gitops
   annotations:
@@ -121,7 +93,7 @@ metadata:
   name: workshop-namespaces
   namespace: openshift-gitops
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "-30"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

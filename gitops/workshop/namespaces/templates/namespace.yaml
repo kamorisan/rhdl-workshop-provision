@@ -10,6 +10,7 @@ metadata:
   name: {{ $namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    openshift.io/description: "Workshop user namespace for {{ $username }}"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop
