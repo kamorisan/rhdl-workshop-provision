@@ -16,6 +16,6 @@ metadata:
     app.kubernetes.io/part-of: developer-lightspeed-workshop
     workshop.user: {{ $username }}
     workshop.user-id: {{ $id | quote }}
-    workshop.namespace-type: {{ trimPrefix "-" $suffix }}
+    workshop.namespace-type: "{{ trimPrefix "-" $suffix }}"
 {{- end }}
 {{- end }}
