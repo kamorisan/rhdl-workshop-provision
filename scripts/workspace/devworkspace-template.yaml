@@ -11,10 +11,6 @@ metadata:
 spec:
   started: false
   routingClass: che
-  contributions:
-    - name: editor
-      kubernetes:
-        name: che-code-spring-to-quarkus-workshop
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace
