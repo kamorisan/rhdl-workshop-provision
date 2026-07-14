@@ -27,4 +27,3 @@ subjects:
     apiGroup: rbac.authorization.k8s.io
     name: system:serviceaccounts:{{ $devspacesNamespace }}
 {{- end }}
-{{- end }}
