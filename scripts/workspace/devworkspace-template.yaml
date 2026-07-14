@@ -1,7 +1,7 @@
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:
-  name: spring-to-quarkus-workshop
+  name: coolstore-modernization-workshop
   namespace: NAMESPACE_PLACEHOLDER
   labels:
     workshop.user: "USERNAME_PLACEHOLDER"
@@ -14,16 +14,16 @@ spec:
   contributions:
     - name: editor
       kubernetes:
-        name: che-code-spring-to-quarkus-workshop
+        name: che-code-coolstore-modernization-workshop
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace
       controller.devfile.io/scc: container-build
     projects:
-      - name: spring-to-quarkus-sample
+      - name: coolstore-eap7
         git:
           remotes:
-            origin: https://github.com/kamorisan/spring-to-quarkus-sample
+            origin: https://github.com/kamorisan/coolstore-eap7
           checkoutFrom:
             revision: main
     components:
@@ -75,7 +75,7 @@ spec:
           component: dev-tools
           commandLine: |
             SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-            SOURCE_FILE="/projects/spring-to-quarkus-sample/.devspaces/provider-settings.yaml"
+            SOURCE_FILE="/projects/coolstore-eap7/.devspaces/provider-settings.yaml"
             mkdir -p "$SETTINGS_DIR"
             sleep 10
             if [ -f "$SOURCE_FILE" ]; then
@@ -94,7 +94,7 @@ spec:
         exec:
           component: dev-tools
           commandLine: mvn clean package -DskipTests
-          workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+          workingDir: ${PROJECT_SOURCE}/coolstore-eap7
           label: "Build"
           group:
             kind: build
@@ -103,7 +103,7 @@ spec:
         exec:
           component: dev-tools
           commandLine: mvn test
-          workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+          workingDir: ${PROJECT_SOURCE}/coolstore-eap7
           label: "Test"
           group:
             kind: test
@@ -111,7 +111,7 @@ spec:
         exec:
           component: dev-tools
           commandLine: mvn spring-boot:run
-          workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+          workingDir: ${PROJECT_SOURCE}/coolstore-eap7
           label: "Run Application"
           group:
             kind: run

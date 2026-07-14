@@ -33,7 +33,7 @@ for i in $(seq 1 ${USER_COUNT}); do
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspaceTemplate
 metadata:
-  name: che-code-spring-to-quarkus-workshop
+  name: che-code-coolstore-modernization-workshop
   namespace: NAMESPACE_PLACEHOLDER
 spec:
   commands:

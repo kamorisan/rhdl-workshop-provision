@@ -47,7 +47,7 @@ for i in $(seq 1 ${USER_COUNT}); do
   fi
 
   # Delete existing DevWorkspace
-  oc delete devworkspace spring-to-quarkus-workshop -n ${NAMESPACE} --ignore-not-found=true &>/dev/null 2>&1
+  oc delete devworkspace spring-to-quarkus-workshop coolstore-modernization-workshop -n ${NAMESPACE} --ignore-not-found=true &>/dev/null 2>&1
 
   # Create DevWorkspace from template with substitution
   sed -e "s/NAMESPACE_PLACEHOLDER/${NAMESPACE}/g" \

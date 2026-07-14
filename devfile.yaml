@@ -1,22 +1,22 @@
 schemaVersion: 2.3.0
 metadata:
-  name: spring-to-quarkus-workshop
-  displayName: Spring to Quarkus Migration Workshop
-  description: Workshop environment for migrating Spring Boot to Quarkus with auto OpenShift login
+  name: coolstore-modernization-workshop
+  displayName: Coolstore Modernization Workshop
+  description: Workshop environment for modernizing EAP7 application with Red Hat Developer Lightspeed
   language: java
   projectType: maven
   tags:
     - Java
-    - Spring Boot
-    - Quarkus
+    - EAP
     - Migration
+    - Modernization
   version: 1.0.0
 
 projects:
-  - name: spring-to-quarkus-sample
+  - name: coolstore-eap7
     git:
       remotes:
-        origin: https://github.com/kamorisan/spring-to-quarkus-sample
+        origin: https://github.com/kamorisan/coolstore-eap7
       checkoutFrom:
         revision: main
 
@@ -67,14 +67,15 @@ commands:
       component: dev-tools
       commandLine: |
         SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-        SOURCE_FILE="/projects/spring-to-quarkus-sample/.devspaces/provider-settings.yaml"
+        SOURCE_FILE="/projects/coolstore-eap7/.devspaces/provider-settings.yaml"
         mkdir -p "$SETTINGS_DIR"
         sleep 10
         if [ -f "$SOURCE_FILE" ]; then
           cp -f "$SOURCE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
           echo "✅ MTA provider settings configured from project"
         else
-          echo "⚠️ Source file not found"
+          echo "⚠️ Source file not found: $SOURCE_FILE"
+          echo "Please add .devspaces/provider-settings.yaml to your repository"
         fi
         exit 0
       workingDir: /projects
@@ -87,7 +88,7 @@ commands:
     exec:
       component: dev-tools
       commandLine: mvn clean package -DskipTests
-      workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+      workingDir: ${PROJECT_SOURCE}/coolstore-eap7
       label: "Build"
       group:
         kind: build
@@ -97,7 +98,7 @@ commands:
     exec:
       component: dev-tools
       commandLine: mvn test
-      workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+      workingDir: ${PROJECT_SOURCE}/coolstore-eap7
       label: "Test"
       group:
         kind: test
@@ -106,7 +107,7 @@ commands:
     exec:
       component: dev-tools
       commandLine: mvn spring-boot:run
-      workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+      workingDir: ${PROJECT_SOURCE}/coolstore-eap7
       label: "Run Application"
       group:
         kind: run
