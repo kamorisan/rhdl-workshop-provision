@@ -39,13 +39,50 @@ spec:
           volumeMounts:
             - name: m2
               path: /home/user/.m2
+            - name: checode
+              path: /checode
           env:
             - name: MAVEN_OPTS
               value: "-Xmx2g"
+          endpoints:
+            - name: che-code
+              attributes:
+                type: main
+                cookiesAuthEnabled: true
+                discoverable: false
+                urlRewriteSupported: true
+              targetPort: 3100
+              exposure: public
+              protocol: https
+              secure: true
+            - name: code-redirect-1
+              targetPort: 13131
+              exposure: public
+              protocol: https
+            - name: code-redirect-2
+              targetPort: 13132
+              exposure: public
+              protocol: https
+            - name: code-redirect-3
+              targetPort: 13133
+              exposure: public
+              protocol: https
       - name: m2
         volume:
           size: 10Gi
+      - name: checode
+        volume:
+          ephemeral: true
     commands:
+      - id: start-che-code
+        exec:
+          component: dev-tools
+          commandLine: |
+            nohup /checode/entrypoint-volume.sh > /checode/entrypoint-logs.txt 2>&1 &
+          label: "Start Che-Code IDE"
+          group:
+            kind: run
+            isDefault: false
       - id: oc-auto-login
         exec:
           component: dev-tools
@@ -113,4 +150,5 @@ spec:
             isDefault: true
     events:
       postStart:
+        - start-che-code
         - setup-mta-config
