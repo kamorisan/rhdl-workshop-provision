@@ -48,4 +48,4 @@ limitRange:
   containerDefaultCpu: "500m"
   containerDefaultMemory: "1Gi"
   containerDefaultLimitCpu: "2000m"
-  containerDefaultLimitMemory: "4Gi"
+  containerDefaultLimitMemory: "8Gi"
