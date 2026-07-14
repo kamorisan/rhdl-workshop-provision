@@ -20,13 +20,6 @@ projects:
       checkoutFrom:
         revision: main
 
-  - name: workshop-config
-    git:
-      remotes:
-        origin: https://github.com/kamorisan/rhdl-workshop-provision
-      checkoutFrom:
-        revision: main
-
 components:
   - name: dev-tools
     container:
@@ -73,23 +66,9 @@ commands:
     exec:
       component: dev-tools
       commandLine: |
-        #!/bin/bash
         SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-        TEMPLATE_FILE="/projects/workshop-config/.devspaces/provider-settings-template.yaml"
-
         mkdir -p "$SETTINGS_DIR"
-
-        # Wait for project to be cloned (max 30 seconds)
-        for i in {1..30}; do
-          if [ -f "$TEMPLATE_FILE" ]; then
-            cp -f "$TEMPLATE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
-            echo "✅ MTA provider settings configured"
-            exit 0
-          fi
-          sleep 1
-        done
-
-        echo "⚠️ Template file not ready yet, skipping MTA config"
+        curl -sSfL https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/.devspaces/provider-settings-template.yaml -o "$SETTINGS_DIR/provider-settings.yaml" && echo "✅ MTA provider settings configured" || echo "⚠️ Failed to download config"
         exit 0
       workingDir: /projects
       label: "Setup MTA Configuration"
