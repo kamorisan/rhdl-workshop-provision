@@ -23,7 +23,7 @@ projects:
 components:
   - name: dev-tools
     container:
-      image: quay.io/devfile/universal-developer-image:ubi8-latest
+      image: registry.redhat.io/devspaces/udi-rhel9:latest
       memoryRequest: 2Gi
       memoryLimit: 8Gi
       cpuRequest: 500m
