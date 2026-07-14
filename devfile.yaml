@@ -39,15 +39,15 @@ components:
         # OpenShift API URL for auto-login
         - name: OCP_API_URL
           value: "https://api.cluster-59m78.59m78.sandbox1272.opentlc.com:6443"
-        # MTA LLM Configuration
+        # MTA LLM Configuration (overridden by DevWorkspace)
         - name: MTA_LLM_PROVIDER
           value: "ChatOpenAI"
         - name: MTA_LLM_MODEL
           value: "gpt-oss-120b"
         - name: MTA_LLM_BASE_URL
-          value: "https://maas-rhdp.apps.maas.redhatworkshops.io/v1"
+          value: "PLACEHOLDER_WILL_BE_OVERRIDDEN"
         - name: MTA_LLM_API_KEY
-          value: "sk-k6yUFWReBsfsLzDmPWFn9w"
+          value: "PLACEHOLDER_WILL_BE_OVERRIDDEN"
 
   - name: m2
     volume:
