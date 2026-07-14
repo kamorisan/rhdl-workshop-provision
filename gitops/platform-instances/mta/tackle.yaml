@@ -33,5 +33,5 @@ spec:
 
   # Solution Server - enabled for Developer Lightspeed features
   # Note: Requires kai-api-keys Secret with OPENAI_API_BASE and OPENAI_API_KEY
-  kai:
-    enabled: true
+  # MTA Operator 8.1.2 uses flat format (not nested kai.enabled)
+  kai_solution_server_enabled: true
