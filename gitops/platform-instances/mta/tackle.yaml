@@ -10,8 +10,8 @@ metadata:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop
 spec:
-  # Authentication - enabled for multi-user workshop
-  feature_auth_required: true
+  # Authentication - disabled for workshop (no user management required)
+  feature_auth_required: false
 
   # Storage configuration
   hub_database_volume_size: 10Gi
