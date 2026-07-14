@@ -43,50 +43,26 @@ components:
       env:
         - name: MAVEN_OPTS
           value: "-Xmx2g"
-        # OpenShift API URL for auto-login
-        - name: OCP_API_URL
-          value: "https://api.cluster-59m78.59m78.sandbox1272.opentlc.com:6443"
-        # MTA LLM Configuration (overridden by DevWorkspace)
-        - name: MTA_LLM_PROVIDER
-          value: "ChatOpenAI"
-        - name: MTA_LLM_MODEL
-          value: "gpt-oss-120b"
-        - name: MTA_LLM_BASE_URL
-          value: "PLACEHOLDER_WILL_BE_OVERRIDDEN"
-        - name: MTA_LLM_API_KEY
-          value: "PLACEHOLDER_WILL_BE_OVERRIDDEN"
 
   - name: m2
     volume:
       size: 10Gi
 
 commands:
-  # Auto-login to OpenShift on workspace start
   - id: oc-auto-login
     exec:
       component: dev-tools
       commandLine: |
         #!/bin/bash
-        set -e
+        USERNAME=$(echo "${DEVWORKSPACE_NAMESPACE}" | sed 's/-dev$//')
+        OCP_API=$(oc whoami --show-server 2>/dev/null || echo "https://kubernetes.default.svc")
 
-        # Get username from workspace namespace (e.g., user01-devspaces -> user01)
-        USERNAME=$(echo "${DEVWORKSPACE_NAMESPACE}" | sed 's/-devspaces$//')
-        PASSWORD="openshift"
-
-        echo "🔐 Auto-login to OpenShift as ${USERNAME}..."
-
-        if oc login --insecure-skip-tls-verify=true \
-          "${OCP_API_URL}" \
-          -u "${USERNAME}" \
-          -p "${PASSWORD}" >/dev/null 2>&1; then
-          echo "✅ Logged in as ${USERNAME}"
-          echo "   Current project: $(oc project -q)"
-          echo ""
-          echo "You can now use 'oc' commands without manual login!"
+        if oc login --insecure-skip-tls-verify=true "$OCP_API" -u "$USERNAME" -p "openshift" >/dev/null 2>&1; then
+          echo "✅ Logged in as $USERNAME"
         else
-          echo "⚠️  Auto-login failed. You can manually login with:"
-          echo "   oc login --insecure-skip-tls-verify=true ${OCP_API_URL} -u ${USERNAME} -p openshift"
+          echo "⚠️ Auto-login skipped"
         fi
+        exit 0
       workingDir: ${PROJECT_SOURCE}
       label: "Auto-login to OpenShift"
       group:
@@ -98,35 +74,23 @@ commands:
       component: dev-tools
       commandLine: |
         #!/bin/bash
-        set -e
         SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-
-        echo "Creating settings directory..."
-        mkdir -p "$SETTINGS_DIR"
-
-        echo "Locating template file..."
         TEMPLATE_FILE="/projects/workshop-config/.devspaces/provider-settings-template.yaml"
 
-        if [ -f "$TEMPLATE_FILE" ]; then
-          echo "Copying template to $SETTINGS_DIR/provider-settings.yaml"
-          cp -f "$TEMPLATE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
-          chmod 644 "$SETTINGS_DIR/provider-settings.yaml"
-          echo ""
-          echo "✅ MTA provider settings configured from template"
-          echo ""
-          echo "Configuration preview:"
-          grep -A 5 "OPENAI_API_KEY\|baseURL" "$SETTINGS_DIR/provider-settings.yaml" | head -10
-        else
-          echo "❌ Template file not found at: $TEMPLATE_FILE"
-          echo ""
-          echo "Troubleshooting:"
-          echo "  1. Check if workshop-config project was cloned:"
-          ls -la /projects/workshop-config/.devspaces/ 2>/dev/null || echo "     workshop-config not found"
-          echo ""
-          echo "  2. Available projects:"
-          ls -d /projects/*/ 2>/dev/null
-          exit 1
-        fi
+        mkdir -p "$SETTINGS_DIR"
+
+        # Wait for project to be cloned (max 30 seconds)
+        for i in {1..30}; do
+          if [ -f "$TEMPLATE_FILE" ]; then
+            cp -f "$TEMPLATE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
+            echo "✅ MTA provider settings configured"
+            exit 0
+          fi
+          sleep 1
+        done
+
+        echo "⚠️ Template file not ready yet, skipping MTA config"
+        exit 0
       workingDir: /projects
       label: "Setup MTA Configuration"
       group:
@@ -161,3 +125,8 @@ commands:
       group:
         kind: run
         isDefault: true
+
+events:
+  postStart:
+    - oc-auto-login
+    - setup-mta-config
