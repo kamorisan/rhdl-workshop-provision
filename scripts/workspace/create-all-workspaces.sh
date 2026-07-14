@@ -27,8 +27,7 @@ echo "Namespace suffix: $NAMESPACE_SUFFIX"
 echo "Devfile URL: $DEVFILE_URL"
 echo ""
 
-# Store current context to restore later
-ORIGINAL_CONTEXT=$(oc config current-context 2>/dev/null)
+# Run as cluster-admin (must be logged in with sufficient permissions)
 
 echo "Creating DevWorkspaces for all users..."
 echo ""
@@ -45,16 +44,8 @@ for i in $(seq 1 ${USER_COUNT}); do
     continue
   fi
 
-  # Delete existing DevWorkspace
+  # Delete existing DevWorkspace (as cluster-admin)
   oc delete devworkspace spring-to-quarkus-workshop -n ${NAMESPACE} --ignore-not-found=true &>/dev/null 2>&1
-
-  # Login as the user
-  if ! oc login --insecure-skip-tls-verify=true \
-    "${OCP_API_URL}" \
-    -u ${USERNAME} -p ${USER_PASSWORD} >/dev/null 2>&1; then
-    echo "  ⚠️  Login failed for ${USERNAME}, skipping..."
-    continue
-  fi
 
   # Download devfile content
   DEVFILE_CONTENT=$(curl -sSfL ${DEVFILE_URL} 2>/dev/null)
@@ -97,11 +88,6 @@ EOF
     echo "  ❌ Failed to create DevWorkspace"
   fi
 done
-
-# Restore original context
-if [ -n "$ORIGINAL_CONTEXT" ]; then
-  oc config use-context "$ORIGINAL_CONTEXT" >/dev/null 2>&1
-fi
 
 echo ""
 echo "================================================"
