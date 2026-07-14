@@ -36,21 +36,6 @@ components:
       env:
         - name: MAVEN_OPTS
           value: "-Xmx2g"
-      command:
-        - /bin/sh
-      args:
-        - -c
-        - |
-          nohup sh -c '
-            sleep 15
-            SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-            mkdir -p "$SETTINGS_DIR"
-            curl -sSfL https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/.devspaces/provider-settings-template.yaml -o "$SETTINGS_DIR/provider-settings.yaml.tmp" 2>/dev/null
-            if [ -f "$SETTINGS_DIR/provider-settings.yaml.tmp" ]; then
-              mv -f "$SETTINGS_DIR/provider-settings.yaml.tmp" "$SETTINGS_DIR/provider-settings.yaml"
-            fi
-          ' > /tmp/setup-mta-config.log 2>&1 &
-          /checode/entrypoint-volume.sh
 
   - name: m2
     volume:
@@ -131,8 +116,3 @@ commands:
       group:
         kind: run
         isDefault: true
-
-events:
-  postStart:
-    - oc-auto-login
-    - setup-mta-config
