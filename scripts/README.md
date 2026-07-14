@@ -6,29 +6,70 @@
 
 ```
 scripts/
-├── README.md              # このファイル
-├── setup-git.sh           # Git初期設定（初回のみ）
-├── initial-setup.sh       # 本番用：完全セットアップ
-├── status-check.sh        # 本番用：状態確認
-├── cleanup-gitops.sh      # 本番用：クリーンアップ
-├── reset-gitops.sh        # 本番用：環境リセット
-├── generate-user-list.sh  # 本番用：ユーザーリスト生成
-└── test/                  # テスト用スクリプト
-    ├── test-full.sh           # フルテスト（GitOps有効）
-    ├── test-quick-start.sh    # クイックテスト
-    └── test-without-gitops.sh # 最小テスト（GitOps無し）
+├── README.md                  # このファイル
+├── setup/                     # 🛠️  初期セットアップ
+│   ├── initial-setup.sh       # 完全セットアップ
+│   ├── setup-git.sh           # Git初期設定
+│   └── setup-user-secrets.sh  # Secret配布
+├── workspace/                 # 💼 Workspace管理
+│   ├── create-workspaces-with-secrets.sh  # ✅ 推奨
+│   ├── create-workspaces-via-api.sh
+│   └── deprecated/            # 廃止予定スクリプト
+├── user/                      # 👥 ユーザー管理
+│   └── generate-user-list.sh
+├── gitops/                    # 🔄 GitOps操作
+│   ├── cleanup-gitops.sh
+│   └── reset-gitops.sh
+├── ops/                       # 🔍 運用・監視
+│   └── status-check.sh
+└── test/                      # 🧪 テスト
+    ├── test-full.sh
+    ├── test-quick-start.sh
+    └── test-without-gitops.sh
 ```
 
 ---
 
-## 🎯 本番用スクリプト（scripts/）
+## 🚀 Quick Start
 
-### `setup-git.sh`
+### 1. 初期セットアップ
+
+```bash
+# 全体セットアップ（GitOps, MTA, Dev Spacesなど）
+./scripts/setup/initial-setup.sh
+
+# Git設定のみ
+./scripts/setup/setup-git.sh
+
+# Secret配布のみ
+./scripts/setup/setup-user-secrets.sh
+```
+
+### 2. Workspace作成（✅ 推奨）
+
+```bash
+# Secret参照付きWorkspace作成
+./scripts/workspace/create-workspaces-with-secrets.sh
+```
+
+### 3. ステータス確認
+
+```bash
+./scripts/ops/status-check.sh
+```
+
+---
+
+## 🎯 Scripts by Category
+
+### 🛠️  setup/ - 初期セットアップ
+
+#### `setup/setup-git.sh`
 **用途**: GitHubリポジトリの初期設定（最初の1回のみ）
 
 **使用方法**:
 ```bash
-./scripts/setup-git.sh
+./scripts/setup/setup-git.sh
 ```
 
 **処理内容**:
@@ -38,12 +79,12 @@ scripts/
 
 ---
 
-### `initial-setup.sh` ⭐ 本番デプロイ用
+#### `setup/initial-setup.sh` ⭐ 本番デプロイ用
 **用途**: 本番環境の完全な初回プロビジョニング
 
 **使用方法**:
 ```bash
-./scripts/initial-setup.sh
+./scripts/setup/initial-setup.sh
 ```
 
 **処理内容**:
@@ -62,12 +103,124 @@ scripts/
 
 ---
 
-### `status-check.sh` ⭐ 頻繁に使用
+#### `setup/setup-user-secrets.sh`
+**用途**: MTA LLM APIキーのSecret配布
+
+**使用方法**:
+```bash
+./scripts/setup/setup-user-secrets.sh
+```
+
+**処理内容**:
+- `openshift-mta/kai-api-keys` を各ユーザーNamespaceにコピー
+- Workspace作成前に実行
+
+---
+
+### 💼 workspace/ - Workspace管理
+
+#### `workspace/create-workspaces-with-secrets.sh` ⭐ 推奨
+**用途**: Secret参照付きDevWorkspace作成
+
+**使用方法**:
+```bash
+./scripts/workspace/create-workspaces-with-secrets.sh
+
+# ユーザー数カスタマイズ
+USER_COUNT=5 ./scripts/workspace/create-workspaces-with-secrets.sh
+```
+
+**処理内容**:
+1. Secret配布（openshift-mta → user namespaces）
+2. DevWorkspace作成（Secret参照付き）
+
+**環境変数**:
+- `USER_COUNT`: ユーザー数（デフォルト: 10）
+- `USERNAME_PREFIX`: プレフィックス（デフォルト: user）
+- `DEVFILE_REPO`: DevfileリポジトリURL
+
+---
+
+#### `workspace/create-workspaces-via-api.sh`
+**用途**: Dev Spaces API経由Workspace作成
+
+**使用方法**:
+```bash
+./scripts/workspace/create-workspaces-via-api.sh
+```
+
+---
+
+#### `workspace/deprecated/`
+**廃止予定スクリプト**:
+- `create-devworkspaces.sh`
+- `create-workspaces-from-devfile.sh`
+- `replicate-workspaces*.sh/py`
+- `add-mta-extension.sh`
+
+⚠️ 互換性のため残されていますが、新規利用は非推奨です。
+
+---
+
+### 👥 user/ - ユーザー管理
+
+#### `user/generate-user-list.sh`
+**用途**: ワークショップ参加者への配布資料作成
+
+**使用方法**:
+```bash
+# HTML形式（推奨）
+./scripts/user/generate-user-list.sh html
+
+# Markdown形式
+./scripts/user/generate-user-list.sh markdown
+```
+
+**出力先**: `artifacts/workshop-user-list.*`
+
+---
+
+### 🔄 gitops/ - GitOps操作
+
+#### `gitops/cleanup-gitops.sh` ⚠️ 重要
+**用途**: GitOps Applicationsの段階的削除
+
+**使用方法**:
+```bash
+# ユーザーのみ削除
+./scripts/gitops/cleanup-gitops.sh users
+
+# プラットフォームまで削除
+./scripts/gitops/cleanup-gitops.sh platform
+
+# すべて削除
+./scripts/gitops/cleanup-gitops.sh all
+```
+
+---
+
+#### `gitops/reset-gitops.sh`
+**用途**: GitOps Applicationsのリセット
+
+**使用方法**:
+```bash
+# Applicationのみリセット
+./scripts/gitops/reset-gitops.sh applications
+
+# 完全リセット
+./scripts/gitops/reset-gitops.sh full
+```
+
+---
+
+### 🔍 ops/ - 運用・監視
+
+#### `ops/status-check.sh` ⭐ 頻繁に使用
 **用途**: 現在の環境状態をクイック確認
 
 **使用方法**:
 ```bash
-./scripts/status-check.sh
+./scripts/ops/status-check.sh
 ```
 
 **表示内容**:
@@ -203,7 +356,7 @@ export CLEANUP_ROOT=true
 
 ```bash
 # 1. Git初期設定（初回のみ）
-./scripts/setup-git.sh
+./scripts/setup/setup-git.sh
 
 # 2. 設定ファイル準備
 cp ansible/inventory/example/hosts.yml ansible/inventory/production/hosts.yml
@@ -214,10 +367,13 @@ vim ansible/group_vars/vault.yml
 ansible-vault encrypt ansible/group_vars/vault.yml
 
 # 3. プロビジョニング
-./scripts/initial-setup.sh
+./scripts/setup/initial-setup.sh
 
-# 4. ユーザーリスト生成
-./scripts/generate-user-list.sh html
+# 4. Workspace作成
+./scripts/workspace/create-workspaces-with-secrets.sh
+
+# 5. ユーザーリスト生成
+./scripts/user/generate-user-list.sh html
 ```
 
 ---
@@ -226,7 +382,7 @@ ansible-vault encrypt ansible/group_vars/vault.yml
 
 ```bash
 # 1. Git初期設定（初回のみ）
-./scripts/setup-git.sh
+./scripts/setup/setup-git.sh
 
 # 2. テスト設定確認
 vim ansible/inventory/test/hosts.yml
@@ -235,10 +391,10 @@ vim ansible/inventory/test/hosts.yml
 ./scripts/test/test-full.sh
 
 # 4. ステータス確認
-./scripts/status-check.sh
+./scripts/ops/status-check.sh
 
 # 5. クリーンアップ
-./scripts/cleanup-gitops.sh all
+./scripts/gitops/cleanup-gitops.sh all
 ```
 
 ---
@@ -247,16 +403,19 @@ vim ansible/inventory/test/hosts.yml
 
 ```bash
 # ステータス確認
-./scripts/status-check.sh
+./scripts/ops/status-check.sh
 
 # ユーザーリスト再生成
-./scripts/generate-user-list.sh html
+./scripts/user/generate-user-list.sh html
+
+# Workspace作成
+./scripts/workspace/create-workspaces-with-secrets.sh
 
 # 環境リセット
-./scripts/reset-gitops.sh applications
+./scripts/gitops/reset-gitops.sh applications
 
 # クリーンアップ
-./scripts/cleanup-gitops.sh users
+./scripts/gitops/cleanup-gitops.sh users
 ```
 
 ---
@@ -267,12 +426,14 @@ vim ansible/inventory/test/hosts.yml
 
 | スクリプト | 用途 | 所要時間 | 対話型 |
 |-----------|------|---------|--------|
-| setup-git.sh | Git初期設定 | 1分 | ✓ |
-| initial-setup.sh | 完全セットアップ | 20-30分 | ✓ |
-| status-check.sh | 状態確認 | 10秒 | - |
-| cleanup-gitops.sh | リソース削除 | 5-15分 | ✓ |
-| reset-gitops.sh | 環境リセット | 20-40分 | ✓ |
-| generate-user-list.sh | 資格情報リスト | 5秒 | - |
+| setup/setup-git.sh | Git初期設定 | 1分 | ✓ |
+| setup/initial-setup.sh | 完全セットアップ | 20-30分 | ✓ |
+| setup/setup-user-secrets.sh | Secret配布 | 1分 | - |
+| workspace/create-workspaces-with-secrets.sh | Workspace作成 | 2-5分 | - |
+| ops/status-check.sh | 状態確認 | 10秒 | - |
+| gitops/cleanup-gitops.sh | リソース削除 | 5-15分 | ✓ |
+| gitops/reset-gitops.sh | 環境リセット | 20-40分 | ✓ |
+| user/generate-user-list.sh | 資格情報リスト | 5秒 | - |
 
 ### テスト用スクリプト
 
