@@ -77,6 +77,33 @@ commands:
         kind: run
         isDefault: false
 
+  # Setup MTA provider settings
+  - id: setup-mta-config
+    exec:
+      component: dev-tools
+      commandLine: |
+        #!/bin/bash
+        set -e
+
+        echo "📦 Setting up MTA configuration..."
+
+        # MTA設定ディレクトリを作成
+        mkdir -p /checode/remote/data/User/globalStorage/redhat.mta-core/settings
+
+        # リポジトリから設定ファイルをコピー
+        if [ -f ${PROJECT_SOURCE}/.devspaces/provider-settings.yaml ]; then
+          cp ${PROJECT_SOURCE}/.devspaces/provider-settings.yaml \
+             /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml
+          echo "✅ MTA provider settings configured"
+        else
+          echo "⚠️  provider-settings.yaml not found in repository"
+        fi
+      workingDir: ${PROJECT_SOURCE}
+      label: "Setup MTA Configuration"
+      group:
+        kind: run
+        isDefault: false
+
   - id: maven-build
     exec:
       component: dev-tools
@@ -107,6 +134,7 @@ commands:
         isDefault: true
 
 events:
-  # Execute auto-login after workspace starts
+  # Execute auto-login and MTA setup after workspace starts
   postStart:
     - oc-auto-login
+    - setup-mta-config
