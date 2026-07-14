@@ -68,7 +68,19 @@ commands:
       commandLine: |
         SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
         mkdir -p "$SETTINGS_DIR"
-        curl -sSfL https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/.devspaces/provider-settings-template.yaml -o "$SETTINGS_DIR/provider-settings.yaml" && echo "✅ MTA provider settings configured" || echo "⚠️ Failed to download config"
+
+        # Wait for extension to potentially create default file
+        sleep 10
+
+        # Force overwrite with our template
+        curl -sSfL https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/.devspaces/provider-settings-template.yaml -o "$SETTINGS_DIR/provider-settings.yaml.tmp"
+        if [ -f "$SETTINGS_DIR/provider-settings.yaml.tmp" ]; then
+          mv -f "$SETTINGS_DIR/provider-settings.yaml.tmp" "$SETTINGS_DIR/provider-settings.yaml"
+          chmod 644 "$SETTINGS_DIR/provider-settings.yaml"
+          echo "✅ MTA provider settings configured"
+        else
+          echo "⚠️ Failed to download config"
+        fi
         exit 0
       workingDir: /projects
       label: "Setup MTA Configuration"
