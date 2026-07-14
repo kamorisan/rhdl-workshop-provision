@@ -54,7 +54,7 @@ for i in $(seq 1 ${USER_COUNT}); do
     continue
   fi
 
-  # Create DevWorkspace with devfile as annotation (like Dev Spaces UI does)
+  # Create DevWorkspace with devfile embedded in annotation
   cat <<EOF | oc apply -f - >/dev/null 2>&1
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
@@ -66,12 +66,6 @@ metadata:
     workshop.type: "developer-lightspeed"
   annotations:
     che.eclipse.org/che-editor: che-incubator/che-code/latest
-    che.eclipse.org/devfile-source: |
-      scm:
-        repo: https://github.com/kamorisan/rhdl-workshop-provision.git
-        fileName: devfile.yaml
-      factory:
-        params: url=https://github.com/kamorisan/rhdl-workshop-provision
     che.eclipse.org/devfile: |
 $(echo "$DEVFILE_CONTENT" | sed 's/^/      /')
 spec:
