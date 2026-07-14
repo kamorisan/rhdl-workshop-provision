@@ -20,6 +20,13 @@ projects:
       checkoutFrom:
         revision: main
 
+  - name: workshop-config
+    git:
+      remotes:
+        origin: https://github.com/kamorisan/rhdl-workshop-provision
+      checkoutFrom:
+        revision: main
+
 components:
   - name: dev-tools
     container:
@@ -89,8 +96,38 @@ commands:
   - id: setup-mta-config
     exec:
       component: dev-tools
-      commandLine: mkdir -p /checode/remote/data/User/globalStorage/redhat.mta-core/settings && cp ${PROJECT_SOURCE}/.devspaces/provider-settings-template.yaml /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml && echo "✅ MTA provider settings configured from template"
-      workingDir: ${PROJECT_SOURCE}
+      commandLine: |
+        #!/bin/bash
+        set -e
+        SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
+
+        echo "Creating settings directory..."
+        mkdir -p "$SETTINGS_DIR"
+
+        echo "Locating template file..."
+        TEMPLATE_FILE="/projects/workshop-config/.devspaces/provider-settings-template.yaml"
+
+        if [ -f "$TEMPLATE_FILE" ]; then
+          echo "Copying template to $SETTINGS_DIR/provider-settings.yaml"
+          cp -f "$TEMPLATE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
+          chmod 644 "$SETTINGS_DIR/provider-settings.yaml"
+          echo ""
+          echo "✅ MTA provider settings configured from template"
+          echo ""
+          echo "Configuration preview:"
+          grep -A 5 "OPENAI_API_KEY\|baseURL" "$SETTINGS_DIR/provider-settings.yaml" | head -10
+        else
+          echo "❌ Template file not found at: $TEMPLATE_FILE"
+          echo ""
+          echo "Troubleshooting:"
+          echo "  1. Check if workshop-config project was cloned:"
+          ls -la /projects/workshop-config/.devspaces/ 2>/dev/null || echo "     workshop-config not found"
+          echo ""
+          echo "  2. Available projects:"
+          ls -d /projects/*/ 2>/dev/null
+          exit 1
+        fi
+      workingDir: /projects
       label: "Setup MTA Configuration"
       group:
         kind: run
