@@ -124,9 +124,3 @@ commands:
       group:
         kind: run
         isDefault: true
-
-events:
-  # Execute auto-login and MTA setup after workspace starts
-  postStart:
-    - oc-auto-login
-    - setup-mta-config
