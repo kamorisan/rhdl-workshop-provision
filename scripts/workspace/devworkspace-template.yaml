@@ -11,6 +11,10 @@ metadata:
 spec:
   started: false
   routingClass: che
+  contributions:
+    - name: editor
+      kubernetes:
+        name: che-code-spring-to-quarkus-workshop
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace
@@ -27,9 +31,9 @@ spec:
         container:
           image: registry.redhat.io/devspaces/udi-rhel9:latest
           memoryRequest: 2Gi
-          memoryLimit: 8Gi
+          memoryLimit: 6Gi
           cpuRequest: 500m
-          cpuLimit: 2000m
+          cpuLimit: 1000m
           mountSources: true
           sourceMapping: /projects
           volumeMounts:
@@ -40,29 +44,6 @@ spec:
           env:
             - name: MAVEN_OPTS
               value: "-Xmx2g"
-          endpoints:
-            - name: che-code
-              attributes:
-                type: main
-                cookiesAuthEnabled: true
-                discoverable: false
-                urlRewriteSupported: true
-              targetPort: 3100
-              exposure: public
-              protocol: https
-              secure: true
-            - name: code-redirect-1
-              targetPort: 13131
-              exposure: public
-              protocol: https
-            - name: code-redirect-2
-              targetPort: 13132
-              exposure: public
-              protocol: https
-            - name: code-redirect-3
-              targetPort: 13133
-              exposure: public
-              protocol: https
       - name: m2
         volume:
           size: 10Gi
@@ -70,15 +51,6 @@ spec:
         volume:
           ephemeral: true
     commands:
-      - id: start-che-code
-        exec:
-          component: dev-tools
-          commandLine: |
-            nohup /checode/entrypoint-volume.sh > /checode/entrypoint-logs.txt 2>&1 &
-          label: "Start Che-Code IDE"
-          group:
-            kind: run
-            isDefault: false
       - id: oc-auto-login
         exec:
           component: dev-tools
@@ -146,5 +118,4 @@ spec:
             isDefault: true
     events:
       postStart:
-        - start-che-code
         - setup-mta-config
