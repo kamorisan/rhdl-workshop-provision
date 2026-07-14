@@ -40,6 +40,10 @@ spec:
     - id: init-container-command
       apply:
         component: che-code-injector
+    - id: init-che-code-command
+      exec:
+        component: che-code-runtime
+        commandLine: nohup /checode/entrypoint-volume.sh > /checode/entrypoint-logs.txt 2>&1 &
   components:
     - name: che-code-injector
       container:
@@ -93,6 +97,8 @@ spec:
   events:
     preStart:
       - init-container-command
+    postStart:
+      - init-che-code-command
 EOF
 
   if [ $? -eq 0 ]; then
