@@ -65,6 +65,7 @@ metadata:
     workshop.user: "${USERNAME}"
     workshop.type: "developer-lightspeed"
   annotations:
+    che.eclipse.org/che-editor: che-incubator/che-code/latest
     che.eclipse.org/devfile-source: |
       scm:
         repo: https://github.com/kamorisan/rhdl-workshop-provision.git
@@ -76,10 +77,6 @@ $(echo "$DEVFILE_CONTENT" | sed 's/^/      /')
 spec:
   started: false
   routingClass: che
-  contributions:
-    - name: editor
-      kubernetes:
-        name: che-code-spring-to-quarkus-workshop
 EOF
 
   if [ $? -eq 0 ]; then
