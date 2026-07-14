@@ -1,7 +1,8 @@
 {{- range $i := untilStep 1 (add1 .Values.workshop.userCount | int) 1 }}
 {{- $id := printf "%02d" $i }}
 {{- $username := printf "%s%s" $.Values.workshop.usernamePrefix $id }}
-{{- $namespace := printf "%s%s" $username $.Values.workshop.namespaceSuffix }}
+{{- range $suffix := list "-dev" "-devspaces" }}
+{{- $namespace := printf "%s%s" $username $suffix }}
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -23,4 +24,5 @@ spec:
     requests.memory: {{ $.Values.resourceQuota.requestsMemory }}
     limits.cpu: {{ $.Values.resourceQuota.limitsCpu | quote }}
     limits.memory: {{ $.Values.resourceQuota.limitsMemory }}
+{{- end }}
 {{- end }}

@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration from environment or defaults
 USER_COUNT=${USER_COUNT:-10}
 USERNAME_PREFIX=${USERNAME_PREFIX:-user}
-NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--dev}
+NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--devspaces}
 USER_PASSWORD=${USER_PASSWORD:-openshift}
 DEVFILE_URL=${DEVFILE_URL:-https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/devfile.yaml}
 
@@ -56,7 +56,14 @@ for i in $(seq 1 ${USER_COUNT}); do
     continue
   fi
 
-  # Create DevWorkspace
+  # Download devfile content
+  DEVFILE_CONTENT=$(curl -sSfL ${DEVFILE_URL} 2>/dev/null)
+  if [ -z "$DEVFILE_CONTENT" ]; then
+    echo "  ❌ Failed to download devfile"
+    continue
+  fi
+
+  # Create DevWorkspace with devfile as annotation (like Dev Spaces UI does)
   cat <<EOF | oc apply -f - >/dev/null 2>&1
 apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
@@ -66,20 +73,26 @@ metadata:
   labels:
     workshop.user: "${USERNAME}"
     workshop.type: "developer-lightspeed"
+  annotations:
+    che.eclipse.org/devfile-source: |
+      scm:
+        repo: https://github.com/kamorisan/rhdl-workshop-provision.git
+        fileName: devfile.yaml
+      factory:
+        params: url=https://github.com/kamorisan/rhdl-workshop-provision
+    che.eclipse.org/devfile: |
+$(echo "$DEVFILE_CONTENT" | sed 's/^/      /')
 spec:
   started: false
   routingClass: che
   contributions:
-    - name: ide
+    - name: editor
       kubernetes:
-        name: che-code-developer-lightspeed
+        name: che-code-spring-to-quarkus-workshop
 EOF
 
-  # Apply devfile URL using patch (to preserve $ref correctly)
-  oc patch devworkspace spring-to-quarkus-workshop -n ${NAMESPACE} --type=merge -p "{\"spec\":{\"template\":{\"\$ref\":\"${DEVFILE_URL}\"}}}" >/dev/null 2>&1
-
   if [ $? -eq 0 ]; then
-    echo "  ✅ DevWorkspace created with devfile URL"
+    echo "  ✅ DevWorkspace created"
   else
     echo "  ❌ Failed to create DevWorkspace"
   fi
