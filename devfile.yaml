@@ -67,19 +67,14 @@ commands:
       component: dev-tools
       commandLine: |
         SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
+        SOURCE_FILE="/projects/spring-to-quarkus-sample/.devspaces/provider-settings.yaml"
         mkdir -p "$SETTINGS_DIR"
-
-        # Wait for extension to potentially create default file
         sleep 10
-
-        # Force overwrite with our template
-        curl -sSfL https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/.devspaces/provider-settings-template.yaml -o "$SETTINGS_DIR/provider-settings.yaml.tmp"
-        if [ -f "$SETTINGS_DIR/provider-settings.yaml.tmp" ]; then
-          mv -f "$SETTINGS_DIR/provider-settings.yaml.tmp" "$SETTINGS_DIR/provider-settings.yaml"
-          chmod 644 "$SETTINGS_DIR/provider-settings.yaml"
-          echo "✅ MTA provider settings configured"
+        if [ -f "$SOURCE_FILE" ]; then
+          cp -f "$SOURCE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
+          echo "✅ MTA provider settings configured from project"
         else
-          echo "⚠️ Failed to download config"
+          echo "⚠️ Source file not found"
         fi
         exit 0
       workingDir: /projects
@@ -116,3 +111,7 @@ commands:
       group:
         kind: run
         isDefault: true
+
+events:
+  postStart:
+    - setup-mta-config
