@@ -13,6 +13,8 @@ spec:
   destinations:
     - namespace: 'user*-dev'
       server: https://kubernetes.default.svc
+    - namespace: 'user*-devspaces'
+      server: https://kubernetes.default.svc
     - namespace: openshift-gitops
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
