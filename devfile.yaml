@@ -86,52 +86,10 @@ commands:
         kind: run
         isDefault: false
 
-  # Setup MTA provider settings
   - id: setup-mta-config
     exec:
       component: dev-tools
-      commandLine: |
-        #!/bin/bash
-        set -e
-
-        echo "📦 Setting up MTA configuration..."
-
-        # MTA設定ディレクトリを作成
-        mkdir -p /checode/remote/data/User/globalStorage/redhat.mta-core/settings
-
-        # 環境変数からYAMLを動的生成
-        cat > /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml << 'YAML_EOF'
-        ---
-        environment:
-          ALWAYS_APPLIED_KEY: "envvar to be set regardless of which model is active"
-
-        models:
-          OpenAI: &active
-            environment:
-              OPENAI_API_KEY: "${MTA_LLM_API_KEY}"
-            provider: ${MTA_LLM_PROVIDER}
-            args:
-              model: ${MTA_LLM_MODEL}
-              configuration:
-                baseURL: ${MTA_LLM_BASE_URL}
-
-        active: *active
-        YAML_EOF
-
-        # 環境変数を実際の値に置換
-        sed -i "s|\${MTA_LLM_API_KEY}|${MTA_LLM_API_KEY}|g" \
-          /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml
-        sed -i "s|\${MTA_LLM_PROVIDER}|${MTA_LLM_PROVIDER}|g" \
-          /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml
-        sed -i "s|\${MTA_LLM_MODEL}|${MTA_LLM_MODEL}|g" \
-          /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml
-        sed -i "s|\${MTA_LLM_BASE_URL}|${MTA_LLM_BASE_URL}|g" \
-          /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml
-
-        echo "✅ MTA provider settings configured from environment variables"
-        echo "   Provider: ${MTA_LLM_PROVIDER}"
-        echo "   Model: ${MTA_LLM_MODEL}"
-        echo "   Base URL: ${MTA_LLM_BASE_URL}"
+      commandLine: mkdir -p /checode/remote/data/User/globalStorage/redhat.mta-core/settings && kubectl get configmap provider-settings -n "${DEVWORKSPACE_NAMESPACE}" -o jsonpath='{.data.provider-settings\.yaml}' > /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml && echo "✅ MTA provider settings configured from ConfigMap"
       workingDir: ${PROJECT_SOURCE}
       label: "Setup MTA Configuration"
       group:
