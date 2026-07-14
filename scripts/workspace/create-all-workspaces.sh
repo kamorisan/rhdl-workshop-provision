@@ -2,18 +2,22 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_FILE="${SCRIPT_DIR}/devworkspace-template.yaml"
 
 # Configuration from environment or defaults
 USER_COUNT=${USER_COUNT:-10}
 USERNAME_PREFIX=${USERNAME_PREFIX:-user}
 NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--devspaces}
-USER_PASSWORD=${USER_PASSWORD:-openshift}
-DEVFILE_URL=${DEVFILE_URL:-https://raw.githubusercontent.com/kamorisan/rhdl-workshop-provision/main/devfile.yaml}
 
 # Auto-detect cluster API URL
 OCP_API_URL=$(oc whoami --show-server 2>/dev/null)
 if [ -z "$OCP_API_URL" ]; then
   echo "❌ Not logged in to OpenShift cluster"
+  exit 1
+fi
+
+if [ ! -f "$TEMPLATE_FILE" ]; then
+  echo "❌ Template file not found: $TEMPLATE_FILE"
   exit 1
 fi
 
@@ -24,10 +28,8 @@ echo ""
 echo "Cluster: $OCP_API_URL"
 echo "Users: $USER_COUNT (${USERNAME_PREFIX}01-${USERNAME_PREFIX}$(printf '%02d' $USER_COUNT))"
 echo "Namespace suffix: $NAMESPACE_SUFFIX"
-echo "Devfile URL: $DEVFILE_URL"
+echo "Template: $TEMPLATE_FILE"
 echo ""
-
-# Run as cluster-admin (must be logged in with sufficient permissions)
 
 echo "Creating DevWorkspaces for all users..."
 echo ""
@@ -44,44 +46,13 @@ for i in $(seq 1 ${USER_COUNT}); do
     continue
   fi
 
-  # Delete existing DevWorkspace (as cluster-admin)
+  # Delete existing DevWorkspace
   oc delete devworkspace spring-to-quarkus-workshop -n ${NAMESPACE} --ignore-not-found=true &>/dev/null 2>&1
 
-  # Download devfile content
-  DEVFILE_CONTENT=$(curl -sSfL ${DEVFILE_URL} 2>/dev/null)
-  if [ -z "$DEVFILE_CONTENT" ]; then
-    echo "  ❌ Failed to download devfile"
-    continue
-  fi
-
-  # Create DevWorkspace with full annotations (exactly like Dev Spaces UI)
-  cat <<EOF | oc apply -f - >/dev/null 2>&1
-apiVersion: workspace.devfile.io/v1alpha2
-kind: DevWorkspace
-metadata:
-  name: spring-to-quarkus-workshop
-  namespace: ${NAMESPACE}
-  labels:
-    workshop.user: "${USERNAME}"
-    workshop.type: "developer-lightspeed"
-  annotations:
-    che.eclipse.org/che-editor: che-incubator/che-code/latest
-    che.eclipse.org/devfile-source: |
-      scm:
-        repo: https://github.com/kamorisan/rhdl-workshop-provision.git
-        fileName: devfile.yaml
-      factory:
-        params: url=https://github.com/kamorisan/rhdl-workshop-provision
-    che.eclipse.org/devfile: |
-$(echo "$DEVFILE_CONTENT" | sed 's/^/      /')
-spec:
-  started: false
-  routingClass: che
-  contributions:
-    - name: editor
-      kubernetes:
-        name: che-code-spring-to-quarkus-workshop
-EOF
+  # Create DevWorkspace from template with substitution
+  sed -e "s/NAMESPACE_PLACEHOLDER/${NAMESPACE}/g" \
+      -e "s/USERNAME_PLACEHOLDER/${USERNAME}/g" \
+      "$TEMPLATE_FILE" | oc apply -f - >/dev/null 2>&1
 
   if [ $? -eq 0 ]; then
     echo "  ✅ DevWorkspace created"

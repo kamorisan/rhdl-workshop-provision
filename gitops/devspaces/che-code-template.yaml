@@ -1,0 +1,79 @@
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspaceTemplate
+metadata:
+  name: che-code-spring-to-quarkus-workshop
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+spec:
+  commands:
+    - id: init-che-code-command
+      exec:
+        component: che-code-runtime
+        commandLine: nohup /checode/entrypoint-volume.sh > /checode/entrypoint-logs.txt 2>&1 &
+  components:
+    - name: che-code-runtime
+      attributes:
+        app.kubernetes.io/component: che-code-runtime
+        app.kubernetes.io/part-of: che-code.eclipse.org
+        controller.devfile.io/container-contribution: true
+      container:
+        image: registry.redhat.io/devspaces/udi-rhel9:latest
+        cpuRequest: 100m
+        cpuLimit: 1000m
+        memoryRequest: 512Mi
+        memoryLimit: 2Gi
+        sourceMapping: /projects
+        volumeMounts:
+          - name: checode
+            path: /checode
+        endpoints:
+          - name: che-code
+            attributes:
+              type: main
+              cookiesAuthEnabled: true
+              discoverable: false
+              urlRewriteSupported: true
+            targetPort: 3100
+            exposure: public
+            protocol: https
+            secure: true
+          - name: code-redirect-1
+            attributes:
+              discoverable: false
+              urlRewriteSupported: false
+            targetPort: 13131
+            exposure: public
+            protocol: https
+          - name: code-redirect-2
+            attributes:
+              discoverable: false
+              urlRewriteSupported: false
+            targetPort: 13132
+            exposure: public
+            protocol: https
+          - name: code-redirect-3
+            attributes:
+              discoverable: false
+              urlRewriteSupported: false
+            targetPort: 13133
+            exposure: public
+            protocol: https
+    - name: che-code-injector
+      container:
+        image: registry.redhat.io/devspaces/code-rhel8:latest
+        cpuRequest: 30m
+        cpuLimit: 500m
+        memoryRequest: 32Mi
+        memoryLimit: 256Mi
+        command:
+          - /entrypoint-init-container.sh
+        volumeMounts:
+          - name: checode
+            path: /checode
+    - name: checode
+      volume:
+        ephemeral: true
+  events:
+    preStart:
+      - init-che-code-command

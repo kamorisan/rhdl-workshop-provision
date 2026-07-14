@@ -1,0 +1,116 @@
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: spring-to-quarkus-workshop
+  namespace: NAMESPACE_PLACEHOLDER
+  labels:
+    workshop.user: "USERNAME_PLACEHOLDER"
+    workshop.type: "developer-lightspeed"
+  annotations:
+    che.eclipse.org/che-editor: che-incubator/che-code/latest
+spec:
+  started: false
+  routingClass: che
+  contributions:
+    - name: editor
+      kubernetes:
+        name: che-code-spring-to-quarkus-workshop
+  template:
+    attributes:
+      controller.devfile.io/storage-type: per-workspace
+      controller.devfile.io/scc: container-build
+    projects:
+      - name: spring-to-quarkus-sample
+        git:
+          remotes:
+            origin: https://github.com/kamorisan/spring-to-quarkus-sample
+          checkoutFrom:
+            revision: main
+    components:
+      - name: dev-tools
+        container:
+          image: registry.redhat.io/devspaces/udi-rhel9:latest
+          memoryRequest: 2Gi
+          memoryLimit: 8Gi
+          cpuRequest: 500m
+          cpuLimit: 2000m
+          mountSources: true
+          sourceMapping: /projects
+          volumeMounts:
+            - name: m2
+              path: /home/user/.m2
+          env:
+            - name: MAVEN_OPTS
+              value: "-Xmx2g"
+      - name: m2
+        volume:
+          size: 10Gi
+    commands:
+      - id: oc-auto-login
+        exec:
+          component: dev-tools
+          commandLine: |
+            #!/bin/bash
+            USERNAME=$(echo "${DEVWORKSPACE_NAMESPACE}" | sed 's/-devspaces$//')
+            OCP_API=$(oc whoami --show-server 2>/dev/null || echo "https://kubernetes.default.svc")
+
+            if oc login --insecure-skip-tls-verify=true "$OCP_API" -u "$USERNAME" -p "openshift" >/dev/null 2>&1; then
+              echo "✅ Logged in as $USERNAME"
+            else
+              echo "⚠️ Auto-login skipped"
+            fi
+            exit 0
+          workingDir: ${PROJECT_SOURCE}
+          label: "Auto-login to OpenShift"
+          group:
+            kind: run
+            isDefault: false
+      - id: setup-mta-config
+        exec:
+          component: dev-tools
+          commandLine: |
+            SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
+            SOURCE_FILE="/projects/spring-to-quarkus-sample/.devspaces/provider-settings.yaml"
+            mkdir -p "$SETTINGS_DIR"
+            sleep 10
+            if [ -f "$SOURCE_FILE" ]; then
+              cp -f "$SOURCE_FILE" "$SETTINGS_DIR/provider-settings.yaml"
+              echo "✅ MTA provider settings configured from project"
+            else
+              echo "⚠️ Source file not found"
+            fi
+            exit 0
+          workingDir: /projects
+          label: "Setup MTA Configuration"
+          group:
+            kind: run
+            isDefault: false
+      - id: maven-build
+        exec:
+          component: dev-tools
+          commandLine: mvn clean package -DskipTests
+          workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+          label: "Build"
+          group:
+            kind: build
+            isDefault: true
+      - id: maven-test
+        exec:
+          component: dev-tools
+          commandLine: mvn test
+          workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+          label: "Test"
+          group:
+            kind: test
+      - id: run-app
+        exec:
+          component: dev-tools
+          commandLine: mvn spring-boot:run
+          workingDir: ${PROJECT_SOURCE}/spring-to-quarkus-sample
+          label: "Run Application"
+          group:
+            kind: run
+            isDefault: true
+    events:
+      postStart:
+        - setup-mta-config
