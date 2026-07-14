@@ -1,0 +1,44 @@
+---
+- name: Generate user list
+  ansible.builtin.set_fact:
+    workshop_users: "{{ workshop_users | default([]) + [{'username': workshop.username_prefix + '%02d' | format(item), 'namespace': workshop.username_prefix + '%02d' | format(item) + workshop.namespace_suffix, 'id': '%02d' | format(item)}] }}"
+  loop: "{{ range(1, workshop.user_count + 1) | list }}"
+
+- name: Create provider-settings ConfigMap in user namespaces
+  kubernetes.core.k8s:
+    state: present
+    validate_certs: "{{ cluster_validate_certs }}"
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: provider-settings
+        namespace: "{{ item.namespace }}"
+        labels:
+          app.kubernetes.io/part-of: developer-lightspeed-workshop
+          workshop.user: "{{ item.username }}"
+      data:
+        provider-settings.yaml: |
+          ---
+          environment:
+            ALWAYS_APPLIED_KEY: "envvar to be set regardless of which model is active"
+
+          models:
+            OpenAI: &active
+              environment:
+                OPENAI_API_KEY: "{{ vault_llm_api_key }}"
+              provider: ChatOpenAI
+              args:
+                model: {{ llm.model }}
+                configuration:
+                  baseURL: {{ llm.api_base }}
+
+          active: *active
+  loop: "{{ workshop_users }}"
+  no_log: true
+
+- name: Display Dev Spaces configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "Created provider-settings ConfigMap in {{ workshop.user_count }} user namespaces"
+      - "Copied kai-api-keys Secret to {{ workshop.user_count }} user namespaces"

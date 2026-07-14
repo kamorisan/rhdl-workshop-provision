@@ -4,26 +4,10 @@
     workshop_users: "{{ workshop_users | default([]) + [{'username': workshop.username_prefix + '%02d' | format(item), 'namespace': workshop.username_prefix + '%02d' | format(item) + workshop.namespace_suffix, 'id': '%02d' | format(item)}] }}"
   loop: "{{ range(1, workshop.user_count + 1) | list }}"
 
-- name: Generate random passwords for users
-  ansible.builtin.set_fact:
-    user_passwords: "{{ user_passwords | default({}) | combine({item.username: lookup('password', '/dev/null length=' + (workshop.password_length | string) + ' chars=ascii_letters,digits')}) }}"
-  loop: "{{ workshop_users }}"
-  when: workshop.password_mode == "generated"
-  no_log: true
-
-- name: Use provided passwords from vault
-  ansible.builtin.set_fact:
-    user_passwords: "{{ vault_workshop_passwords }}"
-  when:
-    - workshop.password_mode == "provided"
-    - vault_workshop_passwords is defined
-  no_log: true
-
 - name: Use fixed password for all users
   ansible.builtin.set_fact:
     user_passwords: "{{ user_passwords | default({}) | combine({item.username: workshop.fixed_password}) }}"
   loop: "{{ workshop_users }}"
-  when: workshop.password_mode == "fixed"
   no_log: true
 
 - name: Create temporary htpasswd file directory
