@@ -89,7 +89,22 @@ commands:
   - id: setup-mta-config
     exec:
       component: dev-tools
-      commandLine: mkdir -p /checode/remote/data/User/globalStorage/redhat.mta-core/settings && kubectl get configmap provider-settings -n "${DEVWORKSPACE_NAMESPACE}" -o jsonpath='{.data.provider-settings\.yaml}' > /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml && echo "✅ MTA provider settings configured from ConfigMap"
+      commandLine: |
+        #!/bin/bash
+        set -e
+        echo "📦 Setting up MTA configuration from ConfigMap..."
+        mkdir -p /checode/remote/data/User/globalStorage/redhat.mta-core/settings
+
+        # Use ServiceAccount token to access ConfigMap
+        TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+        NAMESPACE=${DEVWORKSPACE_NAMESPACE}
+
+        curl -sSk -H "Authorization: Bearer $TOKEN" \
+          "https://kubernetes.default.svc/api/v1/namespaces/${NAMESPACE}/configmaps/provider-settings" \
+          | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['provider-settings.yaml'])" \
+          > /checode/remote/data/User/globalStorage/redhat.mta-core/settings/provider-settings.yaml 2>/dev/null \
+          && echo "✅ MTA provider settings configured from ConfigMap" \
+          || echo "⚠️ ConfigMap not found, skipping MTA configuration"
       workingDir: ${PROJECT_SOURCE}
       label: "Setup MTA Configuration"
       group:
