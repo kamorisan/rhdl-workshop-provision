@@ -58,6 +58,10 @@ spec:
         app.kubernetes.io/component: che-code-runtime
         app.kubernetes.io/part-of: che-code.eclipse.org
         controller.devfile.io/container-contribution: true
+        che-code.eclipse.org/vscode-extensions:
+          - https://open-vsx.org/api/redhat/mta-core/1.5.0/file/redhat.mta-core-1.5.0.vsix
+          - https://open-vsx.org/api/redhat/vscode-java/1.33.0/file/redhat.vscode-java-1.33.0.vsix
+          - https://open-vsx.org/api/redhat/vscode-xml/0.27.0/file/redhat.vscode-xml-0.27.0.vsix
       container:
         image: registry.redhat.io/devspaces/udi-rhel9:latest
         cpuRequest: 100m
@@ -68,6 +72,9 @@ spec:
         volumeMounts:
           - name: checode
             path: /checode
+        env:
+          - name: OPENVSX_REGISTRY_URL
+            value: "https://open-vsx.org"
         endpoints:
           - name: che-code
             attributes:

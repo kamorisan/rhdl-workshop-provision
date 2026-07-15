@@ -8,6 +8,18 @@ metadata:
     workshop.type: "developer-lightspeed"
   annotations:
     che.eclipse.org/che-editor: che-incubator/che-code/latest
+    che.eclipse.org/devfile-source: |
+      schemaVersion: 2.2.2
+      metadata:
+        attributes:
+          .vscode/extensions.json: |
+            {
+              "recommendations": [
+                "redhat.mta-core",
+                "redhat.java",
+                "redhat.vscode-xml"
+              ]
+            }
 spec:
   started: false
   routingClass: che

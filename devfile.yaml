@@ -11,11 +11,6 @@ metadata:
     - Migration
     - Modernization
   version: 1.0.0
-  attributes:
-    che-code.eclipse.org/vscode-extensions:
-      - https://open-vsx.org/api/redhat/mta-core/1.5.0/file/redhat.mta-core-1.5.0.vsix
-      - https://open-vsx.org/api/redhat/vscode-java/1.33.0/file/redhat.vscode-java-1.33.0.vsix
-      - https://open-vsx.org/api/redhat/vscode-xml/0.27.0/file/redhat.vscode-xml-0.27.0.vsix
 
 projects:
   - name: coolstore-eap7
