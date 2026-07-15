@@ -104,7 +104,7 @@ commands:
       label: "Build"
       group:
         kind: build
-        isDefault: true
+        isDefault: false
 
   - id: maven-test
     exec:
@@ -123,7 +123,7 @@ commands:
       label: "Run Application"
       group:
         kind: run
-        isDefault: true
+        isDefault: false
 
 events:
   postStart:
