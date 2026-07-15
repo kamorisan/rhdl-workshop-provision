@@ -757,3 +757,27 @@ oc exec -n user01-devspaces ${POD##*/} -c dev-tools -- bash -c \
 **再現性**: すべてスクリプト化されており、何度でも同じ結果が得られます
 
 **クリーンアップ**: 不要になったら、Argo CD Applicationsを削除すればすべてのリソースが自動削除されます
+
+---
+
+## よくある質問 (FAQ)
+
+### Q1: ワークスペース起動時に既にtargetフォルダが存在するのはなぜ？
+
+**A**: coolstore-eap7リポジトリに `.gitignore` がなく、誤ってビルド成果物がコミットされていた場合に発生します。
+
+**確認方法**:
+```bash
+# GitHubリポジトリを確認
+git clone https://github.com/kamorisan/coolstore-eap7
+cd coolstore-eap7
+ls -la target/  # targetフォルダが存在するか
+cat .gitignore  # .gitignoreが存在するか
+```
+
+**解決済み**: coolstore-eap7リポジトリに `.gitignore` を追加し、Maven/IDE/OSの一時ファイルを除外するよう設定しました。
+
+**今後のベストプラクティス**:
+- 新しいデモアプリケーションリポジトリを作成する際は、必ず `.gitignore` を最初に追加
+- `target/`, `.idea/`, `.DS_Store` などのビルド成果物・一時ファイルは絶対にコミットしない
+- リポジトリテンプレートに `.gitignore` を含める
