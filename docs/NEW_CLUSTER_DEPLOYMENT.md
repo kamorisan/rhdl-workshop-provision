@@ -452,6 +452,75 @@ oc exec -n user01-devspaces ${POD##*/} -c dev-tools -- bash -c \
 
 ## トラブルシューティング
 
+### Issue -1: Root Application - repoURL が空でデプロイ失敗
+
+**症状**:
+```bash
+oc get application workshop-root -n openshift-gitops
+NAME            SYNC STATUS   HEALTH STATUS
+workshop-root   Unknown       Unknown
+
+# エラーメッセージ
+spec.source.repoURL and either spec.source.path or spec.source.chart are required
+```
+
+**原因**: 
+- Ansible bootstrap実行時に `gitops.repo_url` が空文字列のままだった
+- `auto-deploy-new-cluster.sh` の all.yml 更新ステップで sed 置換が失敗
+- inventoryに `gitops_repo_url` が設定されていなかった
+
+**解決方法**:
+
+```bash
+# 1. Root Applicationのrepo URLを手動で設定
+oc patch application workshop-root -n openshift-gitops --type merge -p '
+{
+  "spec": {
+    "source": {
+      "repoURL": "https://github.com/kamorisan/rhdl-workshop-provision.git"
+    }
+  }
+}'
+
+# 2. 手動Sync実行
+oc patch application workshop-root -n openshift-gitops --type merge -p '
+{
+  "metadata": {
+    "annotations": {
+      "argocd.argoproj.io/refresh": "normal"
+    }
+  }
+}'
+
+# 3. 子Applicationsが作成されたことを確認
+oc get applications -n openshift-gitops
+# => workshop-operators, workshop-platform-instances などが表示されればOK
+```
+
+**予防策**:
+- **inventory に gitops_repo_url を追加**（最も確実）:
+  ```yaml
+  # ansible/inventory/production/hosts.yml
+  vars:
+    gitops_repo_url: "https://github.com/kamorisan/rhdl-workshop-provision.git"
+    gitops_repo_revision: "main"
+  ```
+
+- デプロイ後、Root Application の状態を必ず確認:
+  ```bash
+  oc get application workshop-root -n openshift-gitops -o yaml | grep repoURL
+  # => 空でないことを確認
+  ```
+
+**スクリプト修正** (次回デプロイ時の対応):
+```bash
+# auto-deploy-new-cluster.sh の inventory生成部分に追加
+gitops_repo_url: https://github.com/kamorisan/rhdl-workshop-provision.git
+gitops_repo_revision: main
+```
+
+---
+
 ### Issue 0: Preflight Check - 変数未定義エラー
 
 **症状**:

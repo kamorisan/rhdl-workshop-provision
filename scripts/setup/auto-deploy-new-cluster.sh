@@ -119,9 +119,12 @@ all:
     demo_repository_url: https://github.com/kamorisan/coolstore-eap7
     demo_repository_revision: main
 
-    # GitOps
+    # GitOps (CRITICAL: Root Application depends on this)
     gitops_repo_url: https://github.com/kamorisan/rhdl-workshop-provision.git
     gitops_repo_revision: main
+    gitops:
+      repo_url: https://github.com/kamorisan/rhdl-workshop-provision.git
+      repo_revision: main
 
     # Operators
     gitops_operator_channel: latest
