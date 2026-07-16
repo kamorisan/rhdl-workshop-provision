@@ -7,5 +7,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-80"
 spec:
-  targetNamespaces:
-    - openshift-eap
+  # Empty targetNamespaces = All Namespaces mode
+  # This allows EAP operator to manage resources in any namespace (e.g., user01-dev)
+  targetNamespaces: []
