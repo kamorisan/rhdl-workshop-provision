@@ -1,0 +1,24 @@
+{{- $userCount := .Values.workshop.userCount | int }}
+{{- $usernamePrefix := .Values.workshop.usernamePrefix }}
+{{- $namespaceSuffix := .Values.workshop.namespaceSuffix }}
+{{- range $i := until $userCount }}
+{{- $userNum := add $i 1 }}
+{{- $username := printf "%s%02d" $usernamePrefix $userNum }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-application-controller
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+{{- end }}
