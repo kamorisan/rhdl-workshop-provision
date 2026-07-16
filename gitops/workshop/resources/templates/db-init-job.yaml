@@ -62,22 +62,22 @@ spec:
         - name: POSTGRESQL_USER
           valueFrom:
             secretKeyRef:
-              name: coolstore-db-secret
+              name: postgresql-secret
               key: DB_USERNAME
         - name: POSTGRESQL_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: coolstore-db-secret
+              name: postgresql-secret
               key: DB_PASSWORD
         - name: POSTGRESQL_DATABASE
           valueFrom:
             secretKeyRef:
-              name: coolstore-db-secret
+              name: postgresql-secret
               key: DB_NAME
         - name: PGPASSWORD
           valueFrom:
             secretKeyRef:
-              name: coolstore-db-secret
+              name: postgresql-secret
               key: DB_PASSWORD
         volumeMounts:
         - name: init-scripts
