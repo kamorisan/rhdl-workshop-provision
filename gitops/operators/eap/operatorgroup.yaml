@@ -1,0 +1,11 @@
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: eap-operator-group
+  namespace: openshift-eap
+  annotations:
+    argocd.argoproj.io/sync-wave: "-80"
+spec:
+  targetNamespaces:
+    - openshift-eap
