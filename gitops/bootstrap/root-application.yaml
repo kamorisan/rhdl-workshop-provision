@@ -138,7 +138,7 @@ spec:
         - ../../config/workshop-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: openshift-gitops
+    namespace: '*'
   syncPolicy:
     automated:
       prune: false  # Controlled by prune_users variable
