@@ -1,0 +1,29 @@
+{{- $userCount := .Values.userCount | int }}
+{{- $usernamePrefix := .Values.usernamePrefix }}
+{{- $namespaceSuffix := .Values.namespaceSuffix }}
+{{- range $i := until $userCount }}
+{{- $userNum := add $i 1 }}
+{{- $username := printf "%s%02d" $usernamePrefix $userNum }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: {{ $namespace }}
+  labels:
+    app: coolstore
+    component: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+spec:
+  selector:
+    app: coolstore
+    component: database
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP
+{{- end }}

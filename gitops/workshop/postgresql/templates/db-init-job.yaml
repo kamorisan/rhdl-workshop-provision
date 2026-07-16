@@ -1,0 +1,89 @@
+{{- $userCount := .Values.userCount | int }}
+{{- $usernamePrefix := .Values.usernamePrefix }}
+{{- $namespaceSuffix := .Values.namespaceSuffix }}
+{{- range $i := until $userCount }}
+{{- $userNum := add $i 1 }}
+{{- $username := printf "%s%02d" $usernamePrefix $userNum }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+  namespace: {{ $namespace }}
+  labels:
+    app: coolstore
+    component: database-init
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ add ($.Values.syncWave | int) 10 }}"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: coolstore
+        component: database-init
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: db-init
+        image: {{ $.Values.postgresql.image }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Waiting for PostgreSQL to be ready..."
+          until pg_isready -h postgresql -U $POSTGRESQL_USER; do
+            echo "PostgreSQL is unavailable - sleeping"
+            sleep 2
+          done
+
+          echo "PostgreSQL is ready. Initializing database..."
+
+          # Check if already initialized
+          TABLES=$(psql -h postgresql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';")
+
+          if [ "$TABLES" -gt 0 ]; then
+            echo "Database already initialized. Skipping."
+            exit 0
+          fi
+
+          echo "Running schema creation..."
+          psql -h postgresql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -f /scripts/V1_1__CreateSchema.sql
+
+          echo "Running initial data insert..."
+          psql -h postgresql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -f /scripts/V1_2__AddInitialData.sql
+
+          echo "Database initialization completed successfully!"
+        env:
+        - name: POSTGRESQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_USERNAME
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_PASSWORD
+        - name: POSTGRESQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_NAME
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_PASSWORD
+        volumeMounts:
+        - name: init-scripts
+          mountPath: /scripts
+      volumes:
+      - name: init-scripts
+        configMap:
+          name: db-init-scripts
+{{- end }}

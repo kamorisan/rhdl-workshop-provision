@@ -1,0 +1,84 @@
+{{- $userCount := .Values.userCount | int }}
+{{- $usernamePrefix := .Values.usernamePrefix }}
+{{- $namespaceSuffix := .Values.namespaceSuffix }}
+{{- range $i := until $userCount }}
+{{- $userNum := add $i 1 }}
+{{- $username := printf "%s%02d" $usernamePrefix $userNum }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-scripts
+  namespace: {{ $namespace }}
+  labels:
+    app: coolstore
+    component: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+data:
+  V1_1__CreateSchema.sql: |
+    create table INVENTORY (
+        itemId varchar(255) not null,
+        link varchar(255),
+        location varchar(255),
+        quantity int4,
+        primary key (itemId)
+    );
+
+    create table ORDERS (
+        orderId int8 not null,
+        customerEmail varchar(255),
+        customerName varchar(255),
+        discount float8 not null,
+        orderValue float8 not null,
+        retailPrice float8 not null,
+        shippingDiscount float8 not null,
+        shippingFee float8 not null,
+        primary key (orderId)
+    );
+
+    create table ORDER_ITEMS (
+        ID int8 not null,
+        productId varchar(255),
+        quantity int4 not null,
+        ORDER_ID int8,
+        primary key (ID)
+    );
+
+    create table PRODUCT_CATALOG (
+        itemId varchar(255) not null,
+        description text,
+        name varchar(80),
+        price float8,
+        primary key (itemId)
+    );
+
+    alter table ORDER_ITEMS
+        add constraint FK2BFF474F65938E8
+        foreign key (ORDER_ID)
+        references ORDERS;
+
+    create sequence hibernate_sequence;
+
+  V1_2__AddInitialData.sql: |
+    insert into INVENTORY (itemId, link, location, quantity) values ('329299', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 736);
+    insert into INVENTORY (itemId, link, location, quantity) values ('329199', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 512);
+    insert into INVENTORY (itemId, link, location, quantity) values ('165613', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 256);
+    insert into INVENTORY (itemId, link, location, quantity) values ('165614', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 54);
+    insert into INVENTORY (itemId, link, location, quantity) values ('165954', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 87);
+    insert into INVENTORY (itemId, link, location, quantity) values ('444434', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 443);
+    insert into INVENTORY (itemId, link, location, quantity) values ('444435', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 600);
+    insert into INVENTORY (itemId, link, location, quantity) values ('444436', 'http://maps.google.com/?q=Tokyo', 'Tokyo', 230);
+    insert into INVENTORY (itemId, link, location, quantity) values ('444437', 'http://maps.google.com/?q=Tokyo', 'Tokyo', 300);
+
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('329299', 'Quarkus T-shirt', '', 10.00);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('329199', 'Pronounced Kubernetes', '', 9.00);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('165613', 'Knit socks', '',4.15);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('165614', 'Quarkus H2Go water bottle', '', 14.45);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('165954', 'Patagonia Refugio pack 28L', '', 6.00);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444434', 'Red Hat Impact T-shirt', '', 9.00);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444435', 'Quarkus twill cap', '',13.00 );
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444436', 'Women RHEL 8 t-shirt', '', 10.00);
+    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444437', 'Nanobloc Universal Webcam Cover', '', 2.75);
+{{- end }}

@@ -1,0 +1,79 @@
+{{- $userCount := .Values.userCount | int }}
+{{- $usernamePrefix := .Values.usernamePrefix }}
+{{- $namespaceSuffix := .Values.namespaceSuffix }}
+{{- range $i := until $userCount }}
+{{- $userNum := add $i 1 }}
+{{- $username := printf "%s%02d" $usernamePrefix $userNum }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: {{ $namespace }}
+  labels:
+    app: coolstore
+    component: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coolstore
+      component: database
+  template:
+    metadata:
+      labels:
+        app: coolstore
+        component: database
+    spec:
+      containers:
+      - name: postgresql
+        image: {{ $.Values.postgresql.image }}
+        ports:
+        - containerPort: 5432
+          name: postgresql
+        env:
+        - name: POSTGRESQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_USERNAME
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_PASSWORD
+        - name: POSTGRESQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: coolstore-db-secret
+              key: DB_NAME
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+          subPath: data
+        resources:
+{{ toYaml $.Values.postgresql.resources | indent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRESQL_USER
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRESQL_USER
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgresql-data
+        persistentVolumeClaim:
+          claimName: postgresql-data
+{{- end }}

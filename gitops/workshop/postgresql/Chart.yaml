@@ -1,0 +1,5 @@
+apiVersion: v2
+name: postgresql
+description: PostgreSQL database with Coolstore schema and sample data
+version: 1.0.0
+appVersion: "13"
