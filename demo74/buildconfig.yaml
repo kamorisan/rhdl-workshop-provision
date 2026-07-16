@@ -1,0 +1,30 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: coolstore-eap74
+  namespace: user01-dev
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/kamorisan/coolstore-eap7.4to8.1
+      ref: master
+
+  strategy:
+    type: Source
+    sourceStrategy:
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/jboss-eap-7/eap74-openjdk8-openshift-rhel8:latest
+
+      env:
+        - name: MAVEN_ARGS_APPEND
+          value: "-DskipTests"
+
+  output:
+    to:
+      kind: ImageStreamTag
+      name: coolstore-eap74:latest
+
+  triggers:
+    - type: ConfigChange

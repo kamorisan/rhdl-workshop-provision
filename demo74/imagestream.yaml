@@ -1,0 +1,5 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: coolstore-eap74
+  namespace: user01-dev

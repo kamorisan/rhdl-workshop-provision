@@ -1,4 +1,5 @@
 schemaVersion: 2.2.0
+
 metadata:
   name: spring-to-quarkus-migration
   displayName: Spring Boot to Quarkus Migration Workshop
@@ -30,14 +31,19 @@ components:
       cpuRequest: 500m
       cpuLimit: 2000m
       mountSources: true
+
       volumeMounts:
         - name: m2
           path: /home/user/.m2
+        - name: podman-storage
+          path: /home/user/.local/share/containers
+
       env:
         - name: JAVA_HOME
           value: /usr/lib/jvm/java-17
         - name: MAVEN_OPTS
           value: "-Xmx1g"
+
       endpoints:
         - name: http
           targetPort: 8080
@@ -47,6 +53,10 @@ components:
   - name: m2
     volume:
       size: 10Gi
+
+  - name: podman-storage
+    volume:
+      size: 20Gi
 
 commands:
   - id: maven-build
