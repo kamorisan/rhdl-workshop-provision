@@ -110,7 +110,7 @@ spec:
     namespace: openshift-gitops
   syncPolicy:
     automated:
-      prune: false  # Controlled by prune_users variable
+      prune: true
       selfHeal: true
       allowEmpty: true
     syncOptions:
@@ -141,7 +141,7 @@ spec:
     namespace: '*'
   syncPolicy:
     automated:
-      prune: false  # Controlled by prune_users variable
+      prune: true
       selfHeal: true
       allowEmpty: true
     syncOptions:
