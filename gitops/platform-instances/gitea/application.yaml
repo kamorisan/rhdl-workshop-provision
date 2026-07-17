@@ -1,0 +1,51 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-gitea
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-15"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-platform
+
+  sources:
+    - repoURL: https://dl.gitea.com/charts/
+      chart: gitea
+      targetRevision: "12.6.0"
+      helm:
+        releaseName: gitea
+        valueFiles:
+          - $values/gitops/config/gitea-values.yaml
+
+    - repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
+      targetRevision: main
+      ref: values
+
+    - repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
+      targetRevision: main
+      path: gitops/platform-instances/gitea/openshift
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitea
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates

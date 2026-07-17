@@ -1,0 +1,79 @@
+---
+# Gitea Helm Chart Values for OpenShift Workshop
+
+strategy:
+  type: Recreate
+
+replicaCount: 1
+
+service:
+  http:
+    type: ClusterIP
+    port: 3000
+  ssh:
+    type: ClusterIP
+    port: 22
+
+ingress:
+  enabled: false  # Use OpenShift Route instead
+
+persistence:
+  enabled: true
+  size: 10Gi
+  accessModes:
+    - ReadWriteOnce
+
+gitea:
+  admin:
+    existingSecret: gitea-admin-secret
+
+  config:
+    server:
+      PROTOCOL: http
+      HTTP_PORT: 3000
+      DOMAIN: gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
+      ROOT_URL: https://gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com/
+      SSH_DOMAIN: gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
+      DISABLE_SSH: true  # Disable SSH to simplify setup
+
+    service:
+      DISABLE_REGISTRATION: true  # Disable self-registration
+      REQUIRE_SIGNIN_VIEW: true
+      DEFAULT_ALLOW_CREATE_ORGANIZATION: false
+
+    repository:
+      DEFAULT_PRIVATE: private
+      ENABLE_PUSH_CREATE_USER: false
+      ENABLE_PUSH_CREATE_ORG: false
+
+    security:
+      INSTALL_LOCK: true
+
+    session:
+      PROVIDER: db
+
+    database:
+      DB_TYPE: sqlite3  # Use SQLite for workshop (10 users)
+
+# Security context for OpenShift restricted-v2 SCC
+podSecurityContext:
+  fsGroup: null
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+# Disable external databases
+postgresql:
+  enabled: false
+
+postgresql-ha:
+  enabled: false
+
+redis-cluster:
+  enabled: false

@@ -1,0 +1,39 @@
+---
+- name: Create Gitea namespace before secrets
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: gitea
+
+- name: Create Gitea administrator secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: gitea-admin-secret
+        namespace: gitea
+      type: Opaque
+      stringData:
+        username: "{{ vault_gitea_admin_username }}"
+        password: "{{ vault_gitea_admin_password }}"
+        email: "{{ vault_gitea_admin_email }}"
+
+- name: Create Gitea workshop user provisioning secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: gitea-user-provisioning
+        namespace: gitea
+      type: Opaque
+      stringData:
+        admin-username: "{{ vault_gitea_admin_username }}"
+        admin-password: "{{ vault_gitea_admin_password }}"
+        workshop-password: "{{ vault_gitea_workshop_password }}"

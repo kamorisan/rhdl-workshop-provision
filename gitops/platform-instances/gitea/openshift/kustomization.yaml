@@ -3,6 +3,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - devspaces/checluster.yaml
-  - mta/tackle.yaml
-  - gitea/application.yaml
+  - route.yaml
+  - user-provisioning-script.yaml
+  - user-provisioning-job.yaml

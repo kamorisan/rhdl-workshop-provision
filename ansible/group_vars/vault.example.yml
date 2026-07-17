@@ -37,3 +37,11 @@ vault_demo_repo_token: "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # vault_aws_access_key_id: "AKIAXXXXXXXXXXXXXXXX"
 # vault_aws_secret_access_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # vault_aws_region: "us-east-1"
+
+# Gitea Administrator Credentials
+vault_gitea_admin_username: "gitea-admin"
+vault_gitea_admin_password: "change-me-strong-password"
+vault_gitea_admin_email: "gitea-admin@example.com"
+
+# Gitea Workshop User Password (user01-user10)
+vault_gitea_workshop_password: "openshift"
