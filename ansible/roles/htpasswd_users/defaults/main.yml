@@ -8,4 +8,4 @@ workshop:
   password_length: 16
   fixed_password: "openshift"  # Used when password_mode is "fixed"
   credentials_output: "./artifacts/workshop-users.csv"
-  prune_users: false
+  prune_users: true
