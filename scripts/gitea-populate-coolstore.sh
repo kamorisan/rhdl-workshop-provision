@@ -22,6 +22,10 @@ SOURCE_BRANCH="ocp-s2i-eap7"
 TEMP_DIR="${TEMP_DIR:-/tmp/coolstore-eap7-populate}"
 USER_COUNT="${USER_COUNT:-10}"
 
+# Path to devfile.yaml template (in workshop-provisioning repo)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEVFILE_TEMPLATE="${SCRIPT_DIR}/../templates/coolstore-eap7/devfile.yaml"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -162,140 +166,16 @@ customize_for_user() {
     sed -i.bak "s|https://github.com/kamorisan/coolstore-eap7.git|${user_git_url}|g" \
         scripts/openshift/eap7/01-setup.sh
 
-    # Create devfile.yaml for DevSpaces
-    log "  - Creating devfile.yaml for DevSpaces"
-    cat > devfile.yaml <<EOF
-schemaVersion: 2.3.0
-metadata:
-  name: coolstore-modernization-workshop
-  displayName: Coolstore Modernization Workshop (${username})
-  description: Workshop environment for modernizing EAP7 application with Red Hat Developer Lightspeed
-  language: java
-  projectType: maven
-  tags:
-    - Java
-    - EAP
-    - Migration
-    - Modernization
-  version: 1.0.0
-
-projects:
-  - name: coolstore-eap7
-    git:
-      remotes:
-        origin: ${user_git_url}
-      checkoutFrom:
-        revision: main
-
-components:
-  - name: dev-tools
-    container:
-      image: registry.redhat.io/devspaces/udi-rhel9:latest
-      memoryRequest: 2Gi
-      memoryLimit: 8Gi
-      cpuRequest: 500m
-      cpuLimit: 2000m
-      mountSources: true
-      sourceMapping: /projects
-      volumeMounts:
-        - name: m2
-          path: /home/user/.m2
-      env:
-        - name: MAVEN_OPTS
-          value: "-Xmx2g"
-
-  - name: m2
-    volume:
-      size: 10Gi
-
-commands:
-  - id: oc-auto-login
-    exec:
-      component: dev-tools
-      commandLine: |
-        #!/bin/bash
-        USERNAME=\$(echo "\${DEVWORKSPACE_NAMESPACE}" | sed 's/-dev\$//')
-        OCP_API=\$(oc whoami --show-server 2>/dev/null || echo "https://kubernetes.default.svc")
-
-        if oc login --insecure-skip-tls-verify=true "\$OCP_API" -u "\$USERNAME" -p "openshift" >/dev/null 2>&1; then
-          echo "✅ Logged in as \$USERNAME"
-        else
-          echo "⚠️ Auto-login skipped"
-        fi
-        exit 0
-      workingDir: \${PROJECT_SOURCE}
-      label: "Auto-login to OpenShift"
-      group:
-        kind: run
-        isDefault: false
-
-  - id: setup-mta-config
-    exec:
-      component: dev-tools
-      commandLine: |
-        SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-        SOURCE_FILE="/projects/coolstore-eap7/.devspaces/provider-settings.yaml"
-        TARGET_FILE="\$SETTINGS_DIR/provider-settings.yaml"
-        echo "Setting up MTA configuration..."
-        MAX_WAIT=60
-        WAITED=0
-        while [ ! -d "/projects/coolstore-eap7" ] && [ \$WAITED -lt \$MAX_WAIT ]; do
-          echo "Waiting for coolstore-eap7 project... (\$WAITED/\$MAX_WAIT)"
-          sleep 5
-          WAITED=\$((WAITED + 5))
-        done
-        mkdir -p "\$SETTINGS_DIR"
-        if [ -f "\$SOURCE_FILE" ]; then
-          cp -f "\$SOURCE_FILE" "\$TARGET_FILE"
-          chmod 644 "\$TARGET_FILE"
-          echo "MTA provider settings configured successfully"
-          echo "Source: \$SOURCE_FILE"
-          echo "Target: \$TARGET_FILE"
-          ls -la "\$SETTINGS_DIR/"
-        else
-          echo "Warning: Source file not found: \$SOURCE_FILE"
-          echo "Please ensure .devspaces/provider-settings.yaml exists in coolstore-eap7 repository"
-        fi
-        exit 0
-      workingDir: /projects
-      label: "Setup MTA Configuration"
-      group:
-        kind: run
-        isDefault: false
-
-  - id: maven-build
-    exec:
-      component: dev-tools
-      commandLine: mvn clean package -DskipTests
-      workingDir: \${PROJECT_SOURCE}/coolstore-eap7
-      label: "Build"
-      group:
-        kind: build
-        isDefault: false
-
-  - id: maven-test
-    exec:
-      component: dev-tools
-      commandLine: mvn test
-      workingDir: \${PROJECT_SOURCE}/coolstore-eap7
-      label: "Test"
-      group:
-        kind: test
-
-  - id: run-app
-    exec:
-      component: dev-tools
-      commandLine: mvn spring-boot:run
-      workingDir: \${PROJECT_SOURCE}/coolstore-eap7
-      label: "Run Application"
-      group:
-        kind: run
-        isDefault: false
-
-events:
-  postStart:
-    - setup-mta-config
-EOF
+    # Copy and customize devfile.yaml for DevSpaces
+    log "  - Adding devfile.yaml for DevSpaces"
+    if [ -f "${DEVFILE_TEMPLATE}" ]; then
+        cp "${DEVFILE_TEMPLATE}" devfile.yaml
+        # Update Git URL in devfile.yaml
+        sed -i.bak "s|https://github.com/kamorisan/coolstore-eap7|${user_git_url%.git}|g" devfile.yaml
+    else
+        warn "devfile.yaml template not found at ${DEVFILE_TEMPLATE}"
+        warn "Skipping devfile.yaml creation"
+    fi
 
     # Clean up backup files
     find . -name "*.bak" -delete
