@@ -14,6 +14,7 @@ data:
     echo "Waiting for Gitea API..."
 
     until curl --fail --silent --show-error \
+      --user "${ADMIN_USERNAME}:${ADMIN_PASSWORD}" \
       "${GITEA_URL}/api/v1/version" >/dev/null; do
       sleep 5
     done
