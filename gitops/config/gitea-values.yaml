@@ -49,7 +49,7 @@ gitea:
       DEFAULT_ALLOW_CREATE_ORGANIZATION: false
 
     repository:
-      DEFAULT_PRIVATE: private
+      DEFAULT_PRIVATE: public  # Allow anonymous git clone for workshop
       ENABLE_PUSH_CREATE_USER: false
       ENABLE_PUSH_CREATE_ORG: false
 

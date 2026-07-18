@@ -120,6 +120,7 @@ create_gitea_repo() {
             \"name\": \"coolstore-eap7\",
             \"description\": \"Coolstore EAP7 Application for ${username}\",
             \"private\": false,
+            \"internal\": false,
             \"auto_init\": false,
             \"default_branch\": \"main\"
         }" 2>&1)
