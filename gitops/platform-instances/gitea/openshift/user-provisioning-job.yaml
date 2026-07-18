@@ -21,11 +21,7 @@ spec:
           image: registry.redhat.io/openshift4/ose-cli:latest
           command:
             - /bin/bash
-            - -ec
-          args:
-            - |
-              chmod +x /scripts/provision-users.sh
-              /scripts/provision-users.sh
+            - /scripts/provision-users.sh
           env:
             - name: GITEA_URL
               value: http://gitea-http.gitea.svc.cluster.local:3000
@@ -58,4 +54,4 @@ spec:
         - name: scripts
           configMap:
             name: gitea-user-provisioning-script
-            defaultMode: 0555
+            defaultMode: 0755  # Executable for script execution
