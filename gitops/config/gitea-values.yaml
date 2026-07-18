@@ -1,5 +1,6 @@
 ---
 # Gitea Helm Chart Values for OpenShift Workshop
+# Chart version: 12.6.0
 
 strategy:
   type: Recreate
@@ -22,6 +23,7 @@ persistence:
   size: 10Gi
   accessModes:
     - ReadWriteOnce
+  # StorageClass will use cluster default (gp3-csi)
 
 gitea:
   admin:
@@ -56,10 +58,8 @@ gitea:
       DB_TYPE: sqlite3  # Use SQLite for workshop (10 users)
 
 # Security context for OpenShift restricted-v2 SCC
-podSecurityContext:
-  fsGroup: null
-
-securityContext:
+# Using containerSecurityContext instead of securityContext
+containerSecurityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
   capabilities:
@@ -68,12 +68,21 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
-# Disable external databases
+# Pod security context - leave empty for OpenShift dynamic UID/GID
+podSecurityContext: {}
+
+# Disable all external dependencies
+valkey:
+  enabled: false
+
+valkey-cluster:
+  enabled: false
+
+redis-cluster:
+  enabled: false
+
 postgresql:
   enabled: false
 
 postgresql-ha:
-  enabled: false
-
-redis-cluster:
   enabled: false
