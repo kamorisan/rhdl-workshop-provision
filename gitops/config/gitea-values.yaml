@@ -62,6 +62,7 @@ gitea:
 containerSecurityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
+  runAsUser: null  # Let OpenShift assign dynamic UID
   capabilities:
     drop:
       - ALL
@@ -69,7 +70,8 @@ containerSecurityContext:
     type: RuntimeDefault
 
 # Pod security context - leave empty for OpenShift dynamic UID/GID
-podSecurityContext: {}
+podSecurityContext:
+  fsGroup: null  # Let OpenShift assign dynamic GID
 
 # Disable all external dependencies
 valkey:
