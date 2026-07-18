@@ -55,6 +55,24 @@ Ansible (Bootstrap)
 - **Workshop User Count**: Number of participants (default: 10, max: 99)
 - **Operator Channels**: Verified against target cluster
 
+
+## 📚 Documentation
+
+Complete documentation is available in the [docs/](docs/) directory:
+
+- **[docs/DEPLOYMENT-GUIDE.md](docs/DEPLOYMENT-GUIDE.md)** ⭐ - **START HERE** for new deployments
+  - Complete step-by-step deployment guide (30-35 minutes)
+  - Phase 1-7: Prerequisites → GitOps → Gitea → DevSpaces → Coolstore distribution
+  - Environment customization and troubleshooting
+
+- **[docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md)** - Pre/post-deployment verification
+- **[docs/OPERATIONS.md](docs/OPERATIONS.md)** - Day-2 operations (user management, backup, scaling)
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Command reference
+- **[docs/WORKSHOP_GUIDE.md](docs/WORKSHOP_GUIDE.md)** - Guide for workshop participants
+
+See [docs/README.md](docs/README.md) for complete documentation index.
+
 ## Quick Start
 
 ### Using the Setup Script (Recommended)
