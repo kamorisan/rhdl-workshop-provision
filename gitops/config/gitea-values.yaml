@@ -7,6 +7,12 @@ strategy:
 
 replicaCount: 1
 
+# Enable Gitea Helm Chart OpenShift compatibility
+# This prevents the chart from using fixed UID/GID (1000) and ensures
+# it renders manifests compatible with OpenShift restricted-v2 SCC
+openshift:
+  enabled: true
+
 service:
   http:
     type: ClusterIP
@@ -23,7 +29,6 @@ persistence:
   size: 10Gi
   accessModes:
     - ReadWriteOnce
-  # StorageClass will use cluster default (gp3-csi)
 
 gitea:
   admin:
@@ -36,10 +41,10 @@ gitea:
       DOMAIN: gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
       ROOT_URL: https://gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com/
       SSH_DOMAIN: gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
-      DISABLE_SSH: true  # Disable SSH to simplify setup
+      DISABLE_SSH: true
 
     service:
-      DISABLE_REGISTRATION: true  # Disable self-registration
+      DISABLE_REGISTRATION: true
       REQUIRE_SIGNIN_VIEW: true
       DEFAULT_ALLOW_CREATE_ORGANIZATION: false
 
@@ -55,25 +60,9 @@ gitea:
       PROVIDER: db
 
     database:
-      DB_TYPE: sqlite3  # Use SQLite for workshop (10 users)
+      DB_TYPE: sqlite3
 
-# Security context for OpenShift restricted-v2 SCC
-# Using containerSecurityContext instead of securityContext
-containerSecurityContext:
-  allowPrivilegeEscalation: false
-  runAsNonRoot: true
-  runAsUser: null  # Let OpenShift assign dynamic UID
-  capabilities:
-    drop:
-      - ALL
-  seccompProfile:
-    type: RuntimeDefault
-
-# Pod security context - leave empty for OpenShift dynamic UID/GID
-podSecurityContext:
-  fsGroup: null  # Let OpenShift assign dynamic GID
-
-# Disable all external dependencies
+# Disable all external dependencies (SQLite single-pod configuration)
 valkey:
   enabled: false
 
