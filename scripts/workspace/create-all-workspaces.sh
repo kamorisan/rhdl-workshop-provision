@@ -9,6 +9,14 @@ USER_COUNT=${USER_COUNT:-10}
 USERNAME_PREFIX=${USERNAME_PREFIX:-user}
 NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--devspaces}
 
+# Gitea configuration
+GITEA_ROUTE=$(oc get route gitea -n gitea -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+if [ -z "$GITEA_ROUTE" ]; then
+  echo "⚠️  Warning: Could not detect Gitea route, using default"
+  CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+  GITEA_ROUTE="gitea-gitea.${CLUSTER_DOMAIN}"
+fi
+
 # Auto-detect cluster API URL
 OCP_API_URL=$(oc whoami --show-server 2>/dev/null)
 if [ -z "$OCP_API_URL" ]; then
@@ -49,9 +57,15 @@ for i in $(seq 1 ${USER_COUNT}); do
   # Delete existing DevWorkspace
   oc delete devworkspace spring-to-quarkus-workshop coolstore-modernization-workshop -n ${NAMESPACE} --ignore-not-found=true &>/dev/null 2>&1
 
+  # Build Gitea repository URL for this user with embedded credentials
+  # For workshop environment: embed user credentials in Git URL
+  USER_PASSWORD="openshift"  # Workshop default password
+  GIT_REPO_URL="https://${USERNAME}:${USER_PASSWORD}@${GITEA_ROUTE}/${USERNAME}/coolstore-eap7"
+
   # Create DevWorkspace from template with substitution
-  sed -e "s/NAMESPACE_PLACEHOLDER/${NAMESPACE}/g" \
-      -e "s/USERNAME_PLACEHOLDER/${USERNAME}/g" \
+  sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \
+      -e "s|USERNAME_PLACEHOLDER|${USERNAME}|g" \
+      -e "s|GIT_REPO_URL_PLACEHOLDER|${GIT_REPO_URL}|g" \
       "$TEMPLATE_FILE" | oc apply -f - >/dev/null 2>&1
 
   if [ $? -eq 0 ]; then
