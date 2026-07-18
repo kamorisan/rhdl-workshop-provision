@@ -45,7 +45,7 @@ gitea:
 
     service:
       DISABLE_REGISTRATION: true
-      REQUIRE_SIGNIN_VIEW: true
+      REQUIRE_SIGNIN_VIEW: false  # Allow anonymous read access for public repos
       DEFAULT_ALLOW_CREATE_ORGANIZATION: false
 
     repository:
