@@ -178,6 +178,54 @@ customize_for_user() {
         warn "Skipping devfile.yaml creation"
     fi
 
+    # Add MTA setup script
+    log "  - Adding setup-mta-config.sh script"
+    cat > .devspaces/setup-mta-config.sh <<'SCRIPT_EOF'
+#!/bin/bash
+set -u
+
+LOG_FILE="/tmp/setup-mta-config.log"
+SOURCE_FILE="/projects/coolstore-eap7/.devspaces/provider-settings.yaml"
+SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
+TARGET_FILE="${SETTINGS_DIR}/provider-settings.yaml"
+
+exec >>"${LOG_FILE}" 2>&1
+
+echo "[$(date -Iseconds)] setup-mta-config started"
+echo "user=$(id)"
+echo "pwd=$(pwd)"
+
+for i in $(seq 1 60); do
+  if [ -f "${SOURCE_FILE}" ]; then
+    break
+  fi
+  echo "[$(date -Iseconds)] waiting for ${SOURCE_FILE}: ${i}/60"
+  sleep 2
+done
+
+if [ ! -f "${SOURCE_FILE}" ]; then
+  echo "[$(date -Iseconds)] ERROR: source file not found"
+  exit 1
+fi
+
+mkdir -p "${SETTINGS_DIR}"
+
+if [ -f "${TARGET_FILE}" ] && cmp -s "${SOURCE_FILE}" "${TARGET_FILE}"; then
+  echo "[$(date -Iseconds)] target is already up to date"
+  exit 0
+fi
+
+TMP_FILE="${TARGET_FILE}.tmp.$$"
+cp "${SOURCE_FILE}" "${TMP_FILE}"
+chmod 0644 "${TMP_FILE}"
+mv -f "${TMP_FILE}" "${TARGET_FILE}"
+
+test -s "${TARGET_FILE}"
+echo "[$(date -Iseconds)] setup-mta-config completed"
+ls -l "${TARGET_FILE}"
+SCRIPT_EOF
+    chmod +x .devspaces/setup-mta-config.sh
+
     # Clean up backup files
     find . -name "*.bak" -delete
 

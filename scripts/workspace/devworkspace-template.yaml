@@ -92,31 +92,8 @@ spec:
       - id: setup-mta-config
         exec:
           component: dev-tools
-          commandLine: |
-            SETTINGS_DIR="/checode/remote/data/User/globalStorage/redhat.mta-core/settings"
-            SOURCE_FILE="/projects/coolstore-eap7/.devspaces/provider-settings.yaml"
-            TARGET_FILE="$SETTINGS_DIR/provider-settings.yaml"
-            echo "Setting up MTA configuration..."
-            MAX_WAIT=60
-            WAITED=0
-            while [ ! -d "/projects/coolstore-eap7" ] && [ $WAITED -lt $MAX_WAIT ]; do
-              echo "Waiting for coolstore-eap7 project... ($WAITED/$MAX_WAIT)"
-              sleep 5
-              WAITED=$((WAITED + 5))
-            done
-            mkdir -p "$SETTINGS_DIR"
-            if [ -f "$SOURCE_FILE" ]; then
-              cp -f "$SOURCE_FILE" "$TARGET_FILE"
-              chmod 644 "$TARGET_FILE"
-              echo "MTA provider settings configured successfully"
-              echo "Source: $SOURCE_FILE"
-              echo "Target: $TARGET_FILE"
-              ls -la "$SETTINGS_DIR/"
-            else
-              echo "Warning: Source file not found: $SOURCE_FILE"
-            fi
-            exit 0
-          workingDir: /projects
+          workingDir: /projects/coolstore-eap7
+          commandLine: bash .devspaces/setup-mta-config.sh
           label: "Setup MTA Configuration"
           group:
             kind: run
@@ -149,5 +126,5 @@ spec:
             isDefault: false
     events:
       postStart:
-        - oc-auto-login
         - setup-mta-config
+        # - oc-auto-login  # Temporarily disabled for testing
