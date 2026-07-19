@@ -35,7 +35,7 @@ spec:
       - name: coolstore-eap7
         git:
           remotes:
-            origin: https://github.com/kamorisan/coolstore-eap7
+            origin: GIT_REPO_URL_PLACEHOLDER
           checkoutFrom:
             revision: main
     components:
@@ -69,10 +69,17 @@ spec:
           commandLine: |
             #!/bin/bash
             USERNAME=$(echo "${DEVWORKSPACE_NAMESPACE}" | sed 's/-devspaces$//')
+            USER_NAMESPACE="${USERNAME}-dev"
             OCP_API=$(oc whoami --show-server 2>/dev/null || echo "https://kubernetes.default.svc")
 
             if oc login --insecure-skip-tls-verify=true "$OCP_API" -u "$USERNAME" -p "openshift" >/dev/null 2>&1; then
               echo "✅ Logged in as $USERNAME"
+              # Switch to user's dev namespace
+              if oc project "$USER_NAMESPACE" >/dev/null 2>&1; then
+                echo "✅ Switched to project $USER_NAMESPACE"
+              else
+                echo "⚠️ Could not switch to $USER_NAMESPACE"
+              fi
             else
               echo "⚠️ Auto-login skipped"
             fi
@@ -142,4 +149,5 @@ spec:
             isDefault: false
     events:
       postStart:
+        - oc-auto-login
         - setup-mta-config
