@@ -172,6 +172,13 @@ customize_for_user() {
     sed -i.bak "s|ocp-s2i-eap7|main|g" \
         scripts/openshift/eap7/01-setup.sh
 
+    # Add sourceSecret to BuildConfig for Git authentication
+    log "  - Adding sourceSecret to BuildConfig"
+    sed -i.bak '/contextDir: ""/a\
+    sourceSecret:\
+      name: gitea-git-secret' \
+        scripts/openshift/eap7/01-setup.sh
+
     # Copy and customize devfile.yaml for DevSpaces
     log "  - Adding devfile.yaml for DevSpaces"
     if [ -f "${DEVFILE_TEMPLATE}" ]; then
