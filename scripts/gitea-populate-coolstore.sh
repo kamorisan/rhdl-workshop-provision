@@ -167,6 +167,11 @@ customize_for_user() {
     sed -i.bak "s|https://github.com/kamorisan/coolstore-eap7.git|${user_git_url}|g" \
         scripts/openshift/eap7/01-setup.sh
 
+    # Replace Git branch ref (GitHub: ocp-s2i-eap7 → Gitea: main)
+    log "  - Updating GIT_REF from ocp-s2i-eap7 to main"
+    sed -i.bak "s|ocp-s2i-eap7|main|g" \
+        scripts/openshift/eap7/01-setup.sh
+
     # Copy and customize devfile.yaml for DevSpaces
     log "  - Adding devfile.yaml for DevSpaces"
     if [ -f "${DEVFILE_TEMPLATE}" ]; then
