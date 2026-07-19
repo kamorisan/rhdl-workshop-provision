@@ -126,5 +126,5 @@ spec:
             isDefault: false
     events:
       postStart:
-        - setup-mta-config
-        # - oc-auto-login  # Temporarily disabled for testing
+        - setup-mta-config  # Must run first (no dependencies)
+        - oc-auto-login     # Run after MTA setup (overwrites ServiceAccount auth)
