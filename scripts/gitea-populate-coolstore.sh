@@ -304,6 +304,12 @@ push_to_gitea() {
     # Add all files
     git add .
 
+    # Force add .vscode/extensions.json (ignored by .gitignore but needed for DevWorkspace)
+    if [ -f ".vscode/extensions.json" ]; then
+        git add -f .vscode/extensions.json
+        log "  - Added .vscode/extensions.json"
+    fi
+
     # Commit
     git commit -m "Initial commit for ${username}
 
