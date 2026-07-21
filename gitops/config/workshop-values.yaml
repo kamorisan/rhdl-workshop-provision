@@ -35,7 +35,7 @@ resourceQuota:
   pods: "10"
   services: "5"
   persistentVolumeClaims: "5"
-  requestsCpu: "2"
+  requestsCpu: "4"
   requestsMemory: "16Gi"
   limitsCpu: "4"
   limitsMemory: "32Gi"
