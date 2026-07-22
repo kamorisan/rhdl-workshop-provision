@@ -319,40 +319,48 @@ metadata:
     workshop.user: {{ $username }}
 spec:
   params:
-    - name: MANIFEST_DIR
+    - name: NAMESPACE
       type: string
-      description: Directory containing Kubernetes manifests
-      default: openshift/k8s
+      description: Target namespace
+      default: {{ $namespace }}
   workspaces:
     - name: source
-      description: Workspace containing deployment manifests
+      description: Workspace containing manifests
   steps:
     - name: apply-manifests
-      image: quay.io/openshift/origin-cli:latest
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
       workingDir: $(workspaces.source.path)
       script: |
         #!/bin/bash
         set -e
 
-        MANIFEST_DIR="$(params.MANIFEST_DIR)"
-
         echo "======================================"
-        echo "Deploying Application"
+        echo "Deploying to OpenShift"
+        echo "Namespace: $(params.NAMESPACE)"
         echo "======================================"
-        echo "Manifest directory: ${MANIFEST_DIR}"
-        echo ""
 
-        if [ ! -d "${MANIFEST_DIR}" ]; then
-          echo "ERROR: Manifest directory ${MANIFEST_DIR} not found"
-          exit 1
-        fi
-
-        echo "Applying manifests..."
-        oc apply -f "${MANIFEST_DIR}/"
+        oc project $(params.NAMESPACE)
 
         echo ""
+        echo "Applying Deployment, Service, Route..."
+        oc apply -f openshift/deployment.yaml
+
+        echo ""
+        echo "Restarting Deployment to use the newly pushed image..."
+        oc rollout restart deployment/coolstore-eap8
+
+        echo ""
+        echo "Waiting for rollout..."
+        oc rollout status deployment/coolstore-eap8 --timeout=300s
+
+        echo ""
+        echo "Getting Route URL..."
+        ROUTE_URL=$(oc get route coolstore-eap8 -o jsonpath='https://{.spec.host}/')
+
+        echo ""
         echo "======================================"
-        echo "✓ Deployment Successful"
+        echo "✓ Deployment Complete"
+        echo "Application URL: ${ROUTE_URL}"
         echo "======================================"
 ---
 # Pipeline: coolstore-eap8-pipeline
@@ -432,8 +440,8 @@ spec:
       taskRef:
         name: deploy
       params:
-        - name: MANIFEST_DIR
-          value: openshift/k8s
+        - name: NAMESPACE
+          value: {{ $namespace }}
       workspaces:
         - name: source
           workspace: shared-workspace
