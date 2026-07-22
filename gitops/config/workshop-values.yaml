@@ -73,8 +73,8 @@ tekton:
 
 # EAP 8.1 Runtime Configuration
 eap8:
-  builderImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-builder:latest
-  runtimeImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:latest
+  builderImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-builder:8.1
+  runtimeImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
   resources:
     requests:
       cpu: 200m
