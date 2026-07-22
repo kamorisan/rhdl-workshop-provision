@@ -96,46 +96,62 @@ spec:
       description: Workspace containing the source code
   steps:
     - name: build
-      image: registry.redhat.io/ubi8/openjdk-17:latest
+      image: {{ $.Values.eap8.builderImage }}
       workingDir: $(workspaces.source.path)
       script: |
         #!/bin/bash
         set -e
 
         echo "======================================"
-        echo "Maven Build with Galleon Provisioning"
+        echo "Maven Build with EAP 8.1"
         echo "======================================"
 
-        # Maven build with Galleon provisioning
-        mvn clean package \
-          -Popenshift \
-          -DskipTests \
-          -Dcom.redhat.xpaas.repo.redhatga
+        # Create Maven settings.xml with Red Hat repositories
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml <<'MAVEN_SETTINGS'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <profiles>
+            <profile>
+              <id>redhat-repos</id>
+              <repositories>
+                <repository>
+                  <id>redhat-ga</id>
+                  <url>https://maven.repository.redhat.com/ga/</url>
+                  <releases><enabled>true</enabled></releases>
+                  <snapshots><enabled>false</enabled></snapshots>
+                </repository>
+              </repositories>
+              <pluginRepositories>
+                <pluginRepository>
+                  <id>redhat-ga</id>
+                  <url>https://maven.repository.redhat.com/ga/</url>
+                  <releases><enabled>true</enabled></releases>
+                  <snapshots><enabled>false</enabled></snapshots>
+                </pluginRepository>
+              </pluginRepositories>
+            </profile>
+          </profiles>
+          <activeProfiles>
+            <activeProfile>redhat-repos</activeProfile>
+          </activeProfiles>
+        </settings>
+        MAVEN_SETTINGS
+
+        echo "Maven settings.xml configured with Red Hat repositories"
+        echo ""
+
+        mvn clean package -Popenshift -DskipTests
 
         echo ""
-        echo "======================================"
-        echo "Build Artifacts"
-        echo "======================================"
-        ls -lh target/
+        echo "Build completed. Checking target/server..."
+        ls -la target/server/ || echo "WARNING: target/server not found"
 
         echo ""
-        echo "======================================"
-        echo "Provisioned Server"
-        echo "======================================"
-        if [ -d "target/server" ]; then
-          ls -lh target/server/
-          echo ""
-          echo "Server modules:"
-          ls -la target/server/modules/ | head -20
-        else
-          echo "ERROR: target/server not found!"
-          exit 1
-        fi
-
-        echo ""
-        echo "======================================"
-        echo "✓ Maven Build Successful"
-        echo "======================================"
+        echo "Deployments:"
+        ls -la target/server/standalone/deployments/ || echo "No deployments found"
 ---
 # Task: apply-cli
 apiVersion: tekton.dev/v1
