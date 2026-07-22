@@ -1,0 +1,5 @@
+apiVersion: v2
+name: workshop-images-access
+description: Grant workshop users access to workshop-images namespace for EAP 8.1 builder/runtime images
+version: 1.0.0
+appVersion: "1.0"

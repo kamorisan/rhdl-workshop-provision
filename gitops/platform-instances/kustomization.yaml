@@ -6,3 +6,4 @@ resources:
   - devspaces/checluster.yaml
   - mta/tackle.yaml
   - gitea/application.yaml
+  - workshop-images/application.yaml

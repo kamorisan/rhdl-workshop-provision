@@ -2,6 +2,15 @@
 # Workshop Configuration Values
 # This file is referenced by Helm charts for user namespaces and resources
 
+# Cluster Configuration
+cluster:
+  domain: apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
+  ingressDomain: apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
+
+# Gitea Configuration
+gitea:
+  baseUrl: https://gitea-gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
+
 workshop:
   userCount: 10
   usernamePrefix: user
@@ -56,5 +65,22 @@ postgresql:
   username: coolstore
   password: coolstore123
   storageSize: 5Gi
+
+# EAP 8.1 Tekton Pipeline Configuration
+tekton:
+  pipelineWorkspaceSize: 2Gi
+  storageClassName: gp3-csi
+
+# EAP 8.1 Runtime Configuration
+eap8:
+  builderImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-builder:8.1
+  runtimeImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
 
 syncWave: "40"

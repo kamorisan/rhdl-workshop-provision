@@ -1,0 +1,49 @@
+{{- range $i := untilStep 1 (add1 .Values.workshop.userCount | int) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $.Values.workshop.usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $.Values.workshop.namespaceSuffix }}
+---
+# Image Builder Role - Allows Tekton pipeline to build container images using Buildah
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-image-builder
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: {{ $namespace }}
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:image-builder
+---
+# Image Puller Role - Allows Tekton pipeline to pull images from internal registry
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-image-puller
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: {{ $namespace }}
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:image-puller
+{{- end }}

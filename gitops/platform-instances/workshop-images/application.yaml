@@ -1,0 +1,37 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-images-access
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: workshop-platform
+
+  sources:
+    - repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
+      targetRevision: main
+      path: gitops/platform-instances/workshop-images
+      helm:
+        valueFiles:
+          - $values/gitops/config/workshop-values.yaml
+
+    - repoURL: https://github.com/kamorisan/rhdl-workshop-provision.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: workshop-images
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true

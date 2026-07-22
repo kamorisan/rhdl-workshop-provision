@@ -1,0 +1,51 @@
+{{- range $i := untilStep 1 (add1 .Values.workshop.userCount | int) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $.Values.workshop.usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $.Values.workshop.namespaceSuffix }}
+---
+# Allow pipeline ServiceAccount to pull images from workshop-images namespace
+# Used by Buildah task to pull EAP 8.1 builder image during container build
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $username }}-pipeline-puller
+  namespace: workshop-images
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: image-access
+    workshop.user: {{ $username }}
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: {{ $namespace }}
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:image-puller
+---
+# Allow default ServiceAccount to pull images from workshop-images namespace
+# Used by runtime pods to pull EAP 8.1 runtime image during deployment
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $username }}-default-puller
+  namespace: workshop-images
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: image-access
+    workshop.user: {{ $username }}
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ $namespace }}
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:image-puller
+{{- end }}
