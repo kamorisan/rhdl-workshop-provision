@@ -1,0 +1,91 @@
+{{- $userCount := .Values.workshop.userCount | int }}
+{{- $usernamePrefix := .Values.workshop.usernamePrefix }}
+{{- $namespaceSuffix := .Values.workshop.namespaceSuffix }}
+{{- range $i := untilStep 1 (int (add1 $userCount)) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+# Task: pvc-init (one-time PVC initialization)
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: pvc-init
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "45"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  workspaces:
+    - name: workspace
+      description: Workspace to initialize
+  steps:
+    - name: init
+      image: registry.redhat.io/ubi9/ubi-minimal:latest
+      workingDir: $(workspaces.workspace.path)
+      script: |
+        #!/bin/sh
+        echo "======================================"
+        echo "Initializing PVC Workspace"
+        echo "======================================"
+        echo "Namespace: {{ $namespace }}"
+        echo "Creating .initialized marker file"
+        date > .initialized
+        echo ""
+        echo "Workspace contents:"
+        ls -la
+        echo ""
+        echo "======================================"
+        echo "✓ Workspace Initialized"
+        echo "======================================"
+---
+# Pipeline: pvc-init-pipeline (one-time PVC binding)
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pvc-init-pipeline
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "45"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  workspaces:
+    - name: shared-workspace
+  tasks:
+    - name: init-pvc
+      taskRef:
+        name: pvc-init
+      workspaces:
+        - name: workspace
+          workspace: shared-workspace
+---
+# PipelineRun: pvc-init (auto-executed on deployment)
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pvc-init-auto
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+    argocd.argoproj.io/sync-options: "Replace=true"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  pipelineRef:
+    name: pvc-init-pipeline
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: pipeline-workspace-pvc
+{{- end }}
