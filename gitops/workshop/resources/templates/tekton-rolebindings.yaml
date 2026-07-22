@@ -46,4 +46,26 @@ roleRef:
   kind: ClusterRole
   apiGroup: rbac.authorization.k8s.io
   name: system:image-puller
+---
+# Privileged SCC - Allows Tekton pipeline to run privileged containers (Buildah)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-privileged-scc
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: {{ $namespace }}
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:openshift:scc:privileged
 {{- end }}
