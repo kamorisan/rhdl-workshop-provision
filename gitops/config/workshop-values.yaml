@@ -75,6 +75,8 @@ tekton:
 eap8:
   builderImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-builder:8.1
   runtimeImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
+  # Note: Images are mirrored from registry.redhat.io via BuildConfig
+  # Ensure BuildConfig creates amd64 images only (no Mac arm64 push)
   resources:
     requests:
       cpu: 200m
