@@ -73,10 +73,10 @@ tekton:
 
 # EAP 8.1 Runtime Configuration
 eap8:
-  builderImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-builder@sha256:d7c18f662932454817d42b37213db6d5f310bc70a4b2f875308ee80aa16369d7
+  builderImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-builder:8.1
   runtimeImage: image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
-  # Note: Builder image pinned to specific SHA256 due to node cache issue
-  # TODO: For new clusters, use :8.1 tag after confirming no arm64 images exist
+  # Note: ImageStream rebuilt to remove arm64 image history
+  # Only amd64 images exist now - safe to use :8.1 tag
   resources:
     requests:
       cpu: 200m
