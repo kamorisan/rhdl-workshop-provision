@@ -1,0 +1,426 @@
+{{- $userCount := .Values.workshop.userCount | int }}
+{{- $usernamePrefix := .Values.workshop.usernamePrefix }}
+{{- $namespaceSuffix := .Values.workshop.namespaceSuffix }}
+{{- $giteaBaseUrl := .Values.gitea.baseUrl }}
+{{- $clusterDomain := .Values.cluster.domain }}
+{{- range $i := untilStep 1 (int (add1 $userCount)) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+{{- $giteaRepoUrl := printf "%s/%s/coolstore-eap7.git" $giteaBaseUrl $username }}
+{{- $giteaHost := regexReplaceAll "https?://" $giteaBaseUrl "" }}
+---
+# Task: git-clone
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: git-clone
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: url
+      type: string
+      description: Git repository URL
+    - name: revision
+      type: string
+      description: Git revision (branch, tag, commit)
+      default: main
+  workspaces:
+    - name: output
+      description: The git repository will be cloned here
+  steps:
+    - name: clone
+      image: alpine/git:latest
+      workingDir: /workspace
+      env:
+        - name: GIT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: gitea-git-secret
+              key: username
+        - name: GIT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gitea-git-secret
+              key: password
+      script: |
+        #!/bin/sh
+        set -e
+
+        CHECKOUT_DIR="$(workspaces.output.path)"
+
+        echo "Cloning $(params.url) branch $(params.revision) to ${CHECKOUT_DIR}"
+
+        # Clean existing files (not the directory itself)
+        rm -rf "${CHECKOUT_DIR}"/* "${CHECKOUT_DIR}"/.[!.]* 2>/dev/null || true
+
+        # Configure git credential helper for HTTPS
+        git config --global credential.helper store
+        echo "https://${GIT_USERNAME}:${GIT_PASSWORD}@{{ $giteaHost }}" > ~/.git-credentials
+
+        git clone --depth 1 --branch "$(params.revision)" "$(params.url)" "${CHECKOUT_DIR}"
+
+        # Clean credentials
+        rm -f ~/.git-credentials
+
+        cd "${CHECKOUT_DIR}"
+        echo ""
+        echo "Repository cloned successfully:"
+        ls -la
+        echo ""
+        git log -1 --oneline
+---
+# Task: maven-build
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: maven-build
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+  steps:
+    - name: build
+      image: registry.redhat.io/ubi8/openjdk-17:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "======================================"
+        echo "Maven Build with Galleon Provisioning"
+        echo "======================================"
+
+        # Maven build with Galleon provisioning
+        mvn clean package \
+          -Popenshift \
+          -DskipTests \
+          -Dcom.redhat.xpaas.repo.redhatga
+
+        echo ""
+        echo "======================================"
+        echo "Build Artifacts"
+        echo "======================================"
+        ls -lh target/
+
+        echo ""
+        echo "======================================"
+        echo "Provisioned Server"
+        echo "======================================"
+        if [ -d "target/server" ]; then
+          ls -lh target/server/
+          echo ""
+          echo "Server modules:"
+          ls -la target/server/modules/ | head -20
+        else
+          echo "ERROR: target/server not found!"
+          exit 1
+        fi
+
+        echo ""
+        echo "======================================"
+        echo "✓ Maven Build Successful"
+        echo "======================================"
+---
+# Task: apply-cli
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: apply-cli
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+  steps:
+    - name: apply-configuration
+      image: {{ $.Values.eap8.runtimeImage }}
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: JBOSS_HOME
+          value: /workspace/source/target/server
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "======================================"
+        echo "Applying CLI Scripts to Provisioned Server"
+        echo "======================================"
+
+        SERVER_HOME="$(workspaces.source.path)/target/server"
+        CLI="${SERVER_HOME}/bin/jboss-cli.sh"
+
+        if [ ! -d "${SERVER_HOME}" ]; then
+          echo "ERROR: ${SERVER_HOME} does not exist"
+          ls -la "$(workspaces.source.path)/target/" || true
+          exit 1
+        fi
+
+        echo "Server found at: ${SERVER_HOME}"
+        echo ""
+
+        echo "Starting EAP in admin-only mode..."
+        cd "${SERVER_HOME}"
+        ./bin/standalone.sh --admin-only &
+        EAP_PID=$!
+
+        # Wait for EAP to start
+        echo "Waiting for EAP to be ready..."
+        for i in {1..60}; do
+          if ${CLI} --connect --command=":read-attribute(name=server-state)" 2>/dev/null | grep -q "running"; then
+            echo "✓ EAP is ready"
+            break
+          fi
+          echo "Waiting... ($i/60)"
+          sleep 3
+        done
+
+        # Apply Datasource CLI
+        echo ""
+        echo "Applying datasource.cli..."
+        ${CLI} --connect --file="$(workspaces.source.path)/s2i/eap8-install/configuration/datasource.cli"
+
+        # Apply Messaging CLI (check if messaging-activemq subsystem exists)
+        echo ""
+        echo "Checking messaging-activemq subsystem..."
+        set +e
+        MSG_CHECK=$(${CLI} --connect --command="/subsystem=messaging-activemq:read-resource" 2>&1)
+        set -e
+
+        if echo "${MSG_CHECK}" | grep -q '"outcome" => "success"'; then
+          echo "messaging-activemq subsystem found, applying messaging.cli..."
+          ${CLI} --connect --file="$(workspaces.source.path)/s2i/eap8-install/configuration/messaging.cli"
+        else
+          echo "⚠ messaging-activemq subsystem not found, skipping messaging.cli"
+          echo "   This is expected if messaging-activemq layer was not included in Galleon provisioning"
+        fi
+
+        # Shutdown EAP
+        echo ""
+        echo "Shutting down EAP..."
+        ${CLI} --connect --command=":shutdown"
+        wait ${EAP_PID}
+
+        # Remove build-time configuration history to prevent runtime errors
+        HISTORY_DIR="${SERVER_HOME}/standalone/configuration/standalone_xml_history"
+
+        if [ -d "${HISTORY_DIR}" ]; then
+            echo ""
+            echo "Removing build-time configuration history..."
+            rm -rf "${HISTORY_DIR}"
+            echo "✓ Configuration history removed"
+        fi
+
+        echo ""
+        echo "======================================"
+        echo "✓ CLI Scripts Applied Successfully"
+        echo "======================================"
+---
+# Task: build-image
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-image
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: IMAGE
+      type: string
+      description: Complete destination image reference
+  workspaces:
+    - name: source
+      description: Workspace containing the Containerfile and build context
+  steps:
+    - name: build-and-push
+      image: quay.io/buildah/stable:latest
+      workingDir: $(workspaces.source.path)
+      securityContext:
+        privileged: true
+      script: |
+        #!/bin/bash
+        set -e
+
+        IMAGE="$(params.IMAGE)"
+
+        echo "======================================"
+        echo "Building and Pushing Container Image"
+        echo "======================================"
+        echo "Image: ${IMAGE}"
+        echo ""
+
+        buildah bud --format=oci --tls-verify=false --no-cache -f Containerfile -t "${IMAGE}" .
+
+        echo ""
+        echo "Pushing image to registry..."
+        buildah push --tls-verify=false "${IMAGE}" "docker://${IMAGE}"
+
+        echo ""
+        echo "======================================"
+        echo "✓ Image Built and Pushed Successfully"
+        echo "======================================"
+---
+# Task: deploy
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: deploy
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: MANIFEST_DIR
+      type: string
+      description: Directory containing Kubernetes manifests
+      default: openshift/k8s
+  workspaces:
+    - name: source
+      description: Workspace containing deployment manifests
+  steps:
+    - name: apply-manifests
+      image: quay.io/openshift/origin-cli:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        MANIFEST_DIR="$(params.MANIFEST_DIR)"
+
+        echo "======================================"
+        echo "Deploying Application"
+        echo "======================================"
+        echo "Manifest directory: ${MANIFEST_DIR}"
+        echo ""
+
+        if [ ! -d "${MANIFEST_DIR}" ]; then
+          echo "ERROR: Manifest directory ${MANIFEST_DIR} not found"
+          exit 1
+        fi
+
+        echo "Applying manifests..."
+        oc apply -f "${MANIFEST_DIR}/"
+
+        echo ""
+        echo "======================================"
+        echo "✓ Deployment Successful"
+        echo "======================================"
+---
+# Pipeline: coolstore-eap8-pipeline
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: coolstore-eap8-pipeline
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+      default: {{ $giteaRepoUrl }}
+    - name: git-revision
+      type: string
+      description: Git revision (branch, tag, commit)
+      default: main
+    - name: image-name
+      type: string
+      description: Container image name
+      default: image-registry.openshift-image-registry.svc:5000/{{ $namespace }}/coolstore-eap8:latest
+  workspaces:
+    - name: shared-workspace
+      description: Shared workspace for pipeline tasks
+  tasks:
+    - name: git-clone
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    - name: maven-build
+      taskRef:
+        name: maven-build
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - git-clone
+
+    - name: apply-cli
+      taskRef:
+        name: apply-cli
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - maven-build
+
+    - name: build-image
+      taskRef:
+        name: build-image
+      params:
+        - name: IMAGE
+          value: $(params.image-name)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - apply-cli
+
+    - name: deploy
+      taskRef:
+        name: deploy
+      params:
+        - name: MANIFEST_DIR
+          value: openshift/k8s
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - build-image
+{{- end }}
