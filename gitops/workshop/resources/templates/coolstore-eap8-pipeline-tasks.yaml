@@ -97,6 +97,7 @@ spec:
   steps:
     - name: build
       image: {{ $.Values.eap8.builderImage }}
+      imagePullPolicy: Always
       workingDir: $(workspaces.source.path)
       script: |
         #!/bin/bash
@@ -173,6 +174,7 @@ spec:
   steps:
     - name: apply-configuration
       image: {{ $.Values.eap8.runtimeImage }}
+      imagePullPolicy: Always
       workingDir: $(workspaces.source.path)
       env:
         - name: JBOSS_HOME
@@ -293,7 +295,7 @@ spec:
         echo "Image: ${IMAGE}"
         echo ""
 
-        buildah bud --format=oci --tls-verify=false --no-cache -f Containerfile -t "${IMAGE}" .
+        buildah bud --format=oci --tls-verify=false --pull=always --no-cache -f Containerfile -t "${IMAGE}" .
 
         echo ""
         echo "Pushing image to registry..."
