@@ -541,6 +541,8 @@ spec:
                       cpu: "1000m"
                       memory: "1Gi"
                   env:
+                    - name: RUN_DB_MIGRATION
+                      value: "false"
                     - name: DB_SERVICE_PREFIX_MAPPING
                       value: coolstore-postgresql=DB
                     - name: COOLSTORE_POSTGRESQL_SERVICE_HOST

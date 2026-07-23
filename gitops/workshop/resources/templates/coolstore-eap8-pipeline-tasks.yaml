@@ -348,6 +348,12 @@ spec:
         oc apply -f openshift/deployment.yaml
 
         echo ""
+        echo "Disabling application-managed Flyway migration..."
+        oc set env \
+          deployment/coolstore-eap8 \
+          RUN_DB_MIGRATION=false
+
+        echo ""
         echo "Restarting Deployment to use the newly pushed image..."
         oc rollout restart deployment/coolstore-eap8
 
