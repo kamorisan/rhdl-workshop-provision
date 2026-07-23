@@ -312,8 +312,14 @@ spec:
         cat > Containerfile <<'EOF'
         FROM image-registry.openshift-image-registry.svc:5000/workshop-images/eap74-els:7.4
 
+        USER root
+
         # Copy the entire EAP installation with deployments and modules
         COPY --chown=jboss:root eap-server /opt/eap
+
+        # Fix permissions for OpenShift
+        RUN chown -R jboss:root /opt/eap && \
+            chmod -R g+rwX /opt/eap
 
         USER jboss
 
