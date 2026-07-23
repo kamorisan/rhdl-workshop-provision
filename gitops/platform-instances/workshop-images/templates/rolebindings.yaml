@@ -11,7 +11,7 @@ metadata:
   name: {{ $username }}-pipeline-puller
   namespace: workshop-images
   annotations:
-    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-wave: "40"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop
@@ -34,7 +34,7 @@ metadata:
   name: {{ $username }}-default-puller
   namespace: workshop-images
   annotations:
-    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-wave: "40"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop

@@ -1,0 +1,96 @@
+---
+# Job to trigger initial builds for all image mirrors
+# This runs once after BuildConfigs are created
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trigger-initial-image-builds
+  namespace: workshop-images
+  labels:
+    app.kubernetes.io/name: image-mirror-init
+    app.kubernetes.io/component: image-mirror
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: image-mirror-init
+    spec:
+      serviceAccountName: default
+      restartPolicy: OnFailure
+      containers:
+      - name: trigger-builds
+        image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          #!/bin/bash
+          set -e
+
+          echo "================================================"
+          echo "Triggering initial builds for image mirrors"
+          echo "================================================"
+
+          # Wait for BuildConfigs to be ready
+          echo "Waiting for BuildConfigs to exist..."
+          sleep 5
+
+          BUILDCONFIGS=(
+            "mirror-eap81-builder"
+            "mirror-eap81-runtime"
+            "mirror-eap74-els"
+          )
+
+          for bc in "${BUILDCONFIGS[@]}"; do
+            echo ""
+            echo "Checking BuildConfig: ${bc}"
+
+            # Check if BuildConfig exists
+            if ! oc get buildconfig ${bc} -n workshop-images &>/dev/null; then
+              echo "  ⚠ BuildConfig ${bc} not found, skipping"
+              continue
+            fi
+
+            # Check if build already completed successfully
+            latest_build=$(oc get builds -n workshop-images -l buildconfig=${bc} \
+              --sort-by=.metadata.creationTimestamp -o name 2>/dev/null | tail -1)
+
+            if [ -n "$latest_build" ]; then
+              status=$(oc get ${latest_build} -n workshop-images -o jsonpath='{.status.phase}')
+              echo "  Latest build status: ${status}"
+
+              if [ "$status" = "Complete" ]; then
+                echo "  ✓ Build already completed, skipping"
+                continue
+              fi
+            fi
+
+            # Trigger new build
+            echo "  → Starting build for ${bc}..."
+            oc start-build ${bc} -n workshop-images
+
+            if [ $? -eq 0 ]; then
+              echo "  ✓ Build started successfully"
+            else
+              echo "  ✗ Failed to start build"
+            fi
+          done
+
+          echo ""
+          echo "================================================"
+          echo "Initial build trigger completed"
+          echo "================================================"
+
+          # Show current build status
+          echo ""
+          echo "Current builds:"
+          oc get builds -n workshop-images | grep -E "NAME|mirror-eap"
+
+          exit 0

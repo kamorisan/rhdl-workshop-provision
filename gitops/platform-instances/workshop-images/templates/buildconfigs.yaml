@@ -1,0 +1,84 @@
+---
+# BuildConfig for EAP 8.1 Builder Image Mirror
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: mirror-eap81-builder
+  namespace: workshop-images
+  labels:
+    app.kubernetes.io/name: eap81-builder
+    app.kubernetes.io/component: image-mirror
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  runPolicy: Serial
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM registry.redhat.io/jboss-eap-8/eap81-openjdk21-builder-openshift-rhel9:latest
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: eap81-builder:8.1
+  successfulBuildsHistoryLimit: 5
+  failedBuildsHistoryLimit: 5
+---
+# BuildConfig for EAP 8.1 Runtime Image Mirror
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: mirror-eap81-runtime
+  namespace: workshop-images
+  labels:
+    app.kubernetes.io/name: eap81-runtime
+    app.kubernetes.io/component: image-mirror
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  runPolicy: Serial
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM registry.redhat.io/jboss-eap-8/eap81-openjdk21-runtime-openshift-rhel9:latest
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: eap81-runtime:8.1
+  successfulBuildsHistoryLimit: 5
+  failedBuildsHistoryLimit: 5
+---
+# BuildConfig for EAP 7.4 ELS Image Mirror
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: mirror-eap74-els
+  namespace: workshop-images
+  labels:
+    app.kubernetes.io/name: eap74-els
+    app.kubernetes.io/component: image-mirror
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  runPolicy: Serial
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM registry.redhat.io/jboss-eap-7/eap74-els-openjdk8-openshift-rhel8:latest
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: eap74-els:7.4
+  successfulBuildsHistoryLimit: 5
+  failedBuildsHistoryLimit: 5
