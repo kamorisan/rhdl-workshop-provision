@@ -340,18 +340,19 @@ spec:
 
         USER root
 
-        # Copy PostgreSQL module and extension scripts from build
-        # S2I runtime will process these during startup
-        COPY --chown=jboss:root eap-server/modules/ /opt/eap/modules/
-        COPY --chown=jboss:root eap-server/extensions/ /opt/eap/extensions/
-
         # Copy WAR to S2I deployments directory
         # S2I runtime will deploy this to /opt/eap/standalone/deployments during startup
-        COPY --chown=jboss:root eap-server/standalone/deployments/ROOT.war /deployments/ROOT.war
+        COPY --chown=jboss:root eap-server/standalone/deployments/ROOT.war /deployments/
+
+        # Copy PostgreSQL module
+        COPY --chown=jboss:root eap-server/modules/system/layers/base/org /opt/eap/modules/system/layers/base/org
+
+        # Copy extension scripts
+        COPY --chown=jboss:root eap-server/extensions /opt/eap/extensions
 
         # Fix permissions for OpenShift
-        RUN chown -R jboss:root /opt/eap/modules /opt/eap/extensions /deployments && \
-            chmod -R g+rwX /opt/eap/modules /opt/eap/extensions /deployments
+        RUN chown -R jboss:root /deployments /opt/eap/modules/system/layers/base/org /opt/eap/extensions && \
+            chmod -R g+rwX /deployments /opt/eap/modules /opt/eap/extensions
 
         USER jboss
 
