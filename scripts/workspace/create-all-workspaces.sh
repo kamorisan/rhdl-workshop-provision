@@ -9,13 +9,8 @@ USER_COUNT=${USER_COUNT:-10}
 USERNAME_PREFIX=${USERNAME_PREFIX:-user}
 NAMESPACE_SUFFIX=${NAMESPACE_SUFFIX:--devspaces}
 
-# Gitea configuration
-GITEA_ROUTE=$(oc get route gitea -n gitea -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
-if [ -z "$GITEA_ROUTE" ]; then
-  echo "⚠️  Warning: Could not detect Gitea route, using default"
-  CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
-  GITEA_ROUTE="gitea-gitea.${CLUSTER_DOMAIN}"
-fi
+# Gitea configuration - use internal service for Pod-to-Pod communication
+GITEA_SERVICE="gitea-http.gitea.svc.cluster.local:3000"
 
 # Auto-detect cluster API URL
 OCP_API_URL=$(oc whoami --show-server 2>/dev/null)
@@ -59,8 +54,9 @@ for i in $(seq 1 ${USER_COUNT}); do
 
   # Build Gitea repository URL for this user with embedded credentials
   # For workshop environment: embed user credentials in Git URL
+  # Use internal service for Pod-to-Pod communication within cluster
   USER_PASSWORD="openshift"  # Workshop default password
-  GIT_REPO_URL="https://${USERNAME}:${USER_PASSWORD}@${GITEA_ROUTE}/${USERNAME}/coolstore-eap7"
+  GIT_REPO_URL="http://${USERNAME}:${USER_PASSWORD}@${GITEA_SERVICE}/${USERNAME}/coolstore-eap7"
 
   # Create DevWorkspace from template with substitution
   sed -e "s|NAMESPACE_PLACEHOLDER|${NAMESPACE}|g" \

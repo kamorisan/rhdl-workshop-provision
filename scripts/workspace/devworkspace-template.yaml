@@ -24,9 +24,9 @@ spec:
   started: false
   routingClass: che
   contributions:
-    - name: ide
-      uri: >-
-        http://devspaces-dashboard.openshift-devspaces.svc.cluster.local:8080/dashboard/api/editors/devfile?che-editor=che-incubator/che-code/latest
+    - name: editor
+      kubernetes:
+        name: che-code-coolstore-modernization-workshop
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace

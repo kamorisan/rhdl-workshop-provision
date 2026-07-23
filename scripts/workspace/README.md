@@ -43,14 +43,19 @@ cd /path/to/workshop-provisioning
    - 対象namespace: `user*-dev`, `user*-devspaces`, `openshift-devspaces`
 
 2. **DevWorkspaceTemplate作成**
-   - 各ユーザーnamespace (`user01-devspaces` ~ `user10-devspaces`) に `che-code-spring-to-quarkus-workshop` テンプレートを作成
+   - 各ユーザーnamespace (`user01-devspaces` ~ `user10-devspaces`) に `che-code-coolstore-modernization-workshop` テンプレートを作成
    - che-code IDE（VS Code互換）の定義を含む
+   - VS Code拡張機能を自動インストール:
+     - Migration Toolkit for Applications (MTA) Core
+     - Language Support for Java
+     - XML Language Support
    - リソース制限: CPU 1000m, Memory 2Gi
 
 3. **DevWorkspace作成**
-   - 10個の `spring-to-quarkus-workshop` ワークスペースを作成
-   - dev-toolsコンテナ: CPU 1000m, Memory 6Gi
-   - 合計リソース: CPU 2000m, Memory 8Gi (LimitRange内)
+   - 10個の `coolstore-modernization-workshop` ワークスペースを作成
+   - 各ユーザーのGiteaリポジトリ (`http://gitea-http.gitea.svc.cluster.local:3000/userXX/coolstore-eap7`) を自動クローン
+   - dev-toolsコンテナ: CPU 500m-1000m, Memory 2Gi-6Gi
+   - 合計リソース: CPU ~2000m, Memory ~8Gi (LimitRange内)
 
 ### 個別ステップの再実行
 
@@ -76,7 +81,6 @@ cd /path/to/workshop-provisioning
 | `USER_COUNT` | `10` | ユーザー数 |
 | `USERNAME_PREFIX` | `user` | ユーザー名プレフィックス |
 | `NAMESPACE_SUFFIX` | `-devspaces` | namespace接尾辞 |
-| `DEVFILE_URL` | `https://raw.githubusercontent.com/...` | devfile.yamlのURL |
 
 例：
 ```bash
@@ -85,7 +89,7 @@ USER_COUNT=5 ./scripts/workspace/create-all-workspaces.sh
 
 ## 作成されるリソース
 
-### DevWorkspaceTemplate (che-code-spring-to-quarkus-workshop)
+### DevWorkspaceTemplate (che-code-coolstore-modernization-workshop)
 
 各ユーザーnamespaceに1つずつ作成されます（合計10個）。
 
@@ -96,24 +100,35 @@ USER_COUNT=5 ./scripts/workspace/create-all-workspaces.sh
   - CPU: 100m - 1000m
   - Memory: 512Mi - 2Gi
   - Endpoints: 3100 (main), 13131-13133 (redirects)
+  - VS Code Extensions:
+    - `redhat.mta-core` (1.5.0)
+    - `redhat.vscode-java` (1.33.0)
+    - `redhat.vscode-xml` (0.27.0)
 
 **イベント**:
 - `preStart`: che-code-injectorを実行
 - `postStart`: che-codeを起動 (`/checode/entrypoint-volume.sh`)
 
-### DevWorkspace (spring-to-quarkus-workshop)
+### DevWorkspace (coolstore-modernization-workshop)
 
 各ユーザーnamespaceに1つずつ作成されます（合計10個）。
+
+**Contributions**:
+- `editor`: カスタムDevWorkspaceTemplate (`che-code-coolstore-modernization-workshop`) を参照
+  - che-code IDE本体とVS Code拡張機能を自動注入
 
 **コンポーネント**:
 - `dev-tools`: 開発環境
   - Image: `registry.redhat.io/devspaces/udi-rhel9:latest`
   - CPU: 500m - 1000m
   - Memory: 2Gi - 6Gi
-  - Volume: m2 (10Gi), checode (ephemeral)
+  - Volume: m2 (10Gi - Maven local repository)
 
 **Projects**:
-- `spring-to-quarkus-sample`: https://github.com/kamorisan/spring-to-quarkus-sample
+- `coolstore-eap7`: 各ユーザーのGiteaリポジトリ
+  - URL: `http://gitea-http.gitea.svc.cluster.local:3000/userXX/coolstore-eap7`
+  - 認証: ユーザー名とパスワードをURL埋め込み
+  - Branch: `main`
 
 **Commands**:
 - `oc-auto-login`: OpenShiftに自動ログイン
@@ -123,7 +138,64 @@ USER_COUNT=5 ./scripts/workspace/create-all-workspaces.sh
 - `run-app`: アプリケーション実行
 
 **Events**:
-- `postStart`: `setup-mta-config` を実行
+- `postStart`: 
+  1. `setup-mta-config` - MTA provider設定を配置
+  2. `oc-auto-login` - OpenShiftへ自動ログイン
+
+## アーキテクチャ
+
+### che-code エディター注入の仕組み
+
+DevWorkspaceは、カスタムDevWorkspaceTemplateを`spec.contributions`から参照することで、che-code（VS Code互換IDE）を注入します。
+
+```yaml
+spec:
+  contributions:
+    - name: editor
+      kubernetes:
+        name: che-code-coolstore-modernization-workshop
+```
+
+このContributionにより、以下が自動的に実行されます：
+
+1. **preStart**: `che-code-injector` が `/checode` ディレクトリへエディターファイルを配置
+2. **postStart**: `/checode/entrypoint-volume.sh` がche-codeサーバーを起動
+3. **Extensions**: Open VSX Registryから指定のVS Code拡張機能をダウンロード・インストール
+4. **Endpoints**: Port 3100でche-codeを公開、DevWorkspace Routingが外部URLを生成
+
+### Gitリポジトリクローンの仕組み
+
+DevWorkspace Operatorは、`spec.template.projects`で指定されたGitリポジトリを自動クローンします。
+
+```yaml
+projects:
+  - name: coolstore-eap7
+    git:
+      remotes:
+        origin: http://user02:openshift@gitea-http.gitea.svc.cluster.local:3000/user02/coolstore-eap7
+      checkoutFrom:
+        revision: main
+```
+
+**重要**: 
+- 内部Service名 (`gitea-http.gitea.svc.cluster.local`) を使用
+- 認証情報をURL埋め込み形式で指定
+- Pod起動時に `/projects/coolstore-eap7` へ自動クローン
+
+### ターミナルの動作
+
+DevWorkspaceで開いたワークスペースでは、以下のターミナル操作が可能です：
+
+| 操作 | 動作 | コンテナ |
+|-----|------|---------|
+| `Terminal` → `New Terminal` | デフォルトbashターミナル | `dev-tools` |
+| `Terminal` → `New Terminal (Select a Container)` | コンテナ選択UI | 任意 |
+| Explorer → 右クリック → `Open in Integrated Terminal` | 選択ディレクトリでターミナルを開く | `dev-tools` |
+
+**実装の仕組み**:
+- カスタムDevWorkspaceTemplateの`che-code-runtime`コンポーネントが、`dev-tools`コンテナへche-code関連プロセスを注入
+- `ptyHost`プロセスが`dev-tools`コンテナ内で稼働
+- VS Code標準の`New Terminal`が`dev-tools`コンテナのbashを起動
 
 ## トラブルシューティング
 
@@ -143,25 +215,106 @@ USER_COUNT=5 ./scripts/workspace/create-all-workspaces.sh
 
 3. **DevWorkspace状態確認**
    ```bash
-   oc get devworkspace spring-to-quarkus-workshop -n user01-devspaces -o yaml
+   oc get devworkspace coolstore-modernization-workshop -n user01-devspaces -o yaml
    ```
 
 ### che-codeが起動しない
 
 1. **che-code プロセス確認**
    ```bash
-   POD=$(oc get pods -n user01-devspaces -o name | head -1)
-   oc exec -n user01-devspaces ${POD##*/} -c dev-tools -- ps aux | grep node
+   POD=$(oc get pods -n user01-devspaces -l controller.devfile.io/devworkspace_name=coolstore-modernization-workshop -o jsonpath='{.items[0].metadata.name}')
+   oc exec -n user01-devspaces $POD -c dev-tools -- ps aux | grep node
    ```
 
 2. **entrypoint-logs確認**
    ```bash
-   oc exec -n user01-devspaces ${POD##*/} -c dev-tools -- cat /checode/entrypoint-logs.txt
+   oc exec -n user01-devspaces $POD -c dev-tools -- cat /checode/entrypoint-logs.txt
    ```
 
-3. **DevWorkspaceTemplate確認**
+3. **Port 3100確認**
    ```bash
-   oc get devworkspacetemplate che-code-spring-to-quarkus-workshop -n user01-devspaces -o yaml
+   oc exec -n user01-devspaces $POD -c dev-tools -- ps aux | grep 3100
+   ```
+   
+   期待される出力:
+   ```
+   /checode/checode-linux-libc/ubi9/node out/server-main.js --host 127.0.0.1 --port 3100
+   ```
+
+4. **DevWorkspaceTemplate確認**
+   ```bash
+   oc get devworkspacetemplate che-code-coolstore-modernization-workshop -n user01-devspaces -o yaml
+   ```
+
+### Gitリポジトリがクローンされない
+
+1. **クローンエラーログ確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- cat /projects/project-clone-errors.log
+   ```
+
+2. **Gitea Service確認**
+   ```bash
+   oc get svc -n gitea gitea-http
+   ```
+   
+   Service名が `gitea-http` であることを確認
+
+3. **DNS解決確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- nslookup gitea-http.gitea.svc.cluster.local
+   ```
+
+4. **Gitea認証確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- curl -u user01:openshift http://gitea-http.gitea.svc.cluster.local:3000/user01/coolstore-eap7
+   ```
+
+### VS Code拡張機能がインストールされない
+
+1. **Extension Host確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- ps aux | grep extensionHost
+   ```
+
+2. **拡張機能ログディレクトリ確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- ls -la /checode/remote/data/logs/*/exthost*/
+   ```
+   
+   期待されるディレクトリ:
+   - `redhat.mta-core/`
+   - `redhat.mta-java/`
+   - `redhat.vscode-java/`
+   - `redhat.vscode-xml/`
+
+3. **DevWorkspaceTemplateの拡張機能定義確認**
+   ```bash
+   oc get devworkspacetemplate che-code-coolstore-modernization-workshop -n user01-devspaces \
+     -o jsonpath='{.spec.components[1].attributes.che-code\.eclipse\.org/vscode-extensions}' | jq .
+   ```
+
+### ターミナルが開かない
+
+1. **ptyHostプロセス確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- ps aux | grep ptyHost
+   ```
+   
+   期待される出力:
+   ```
+   /checode/checode-linux-libc/ubi9/node .../bootstrap-fork --type=ptyHost
+   ```
+
+2. **ptyhost.log確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- sh -c 'ls -la /checode/remote/data/logs/*/ptyhost.log'
+   ```
+
+3. **bash確認**
+   ```bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- which bash
+   oc exec -n user01-devspaces $POD -c dev-tools -- bash --version
    ```
 
 ### ユーザーがワークスペースを見られない
@@ -181,15 +334,49 @@ USER_COUNT=5 ./scripts/workspace/create-all-workspaces.sh
 
 ```bash
 # 全DevWorkspace一覧
-oc get devworkspace --all-namespaces | grep spring-to-quarkus
+oc get devworkspace --all-namespaces | grep coolstore-modernization
 
 # 全DevWorkspaceTemplate一覧
-oc get devworkspacetemplate --all-namespaces | grep che-code-spring-to-quarkus
+oc get devworkspacetemplate --all-namespaces | grep che-code-coolstore
 
 # 特定ユーザーのワークスペース起動テスト
-oc patch devworkspace spring-to-quarkus-workshop -n user01-devspaces --type merge -p '{"spec":{"started":true}}'
-oc get devworkspace spring-to-quarkus-workshop -n user01-devspaces
+oc patch devworkspace coolstore-modernization-workshop -n user01-devspaces --type merge -p '{"spec":{"started":true}}'
+oc get devworkspace coolstore-modernization-workshop -n user01-devspaces
+
+# ブラウザアクセス用URL取得
+oc get devworkspace coolstore-modernization-workshop -n user01-devspaces -o jsonpath='{.status.mainUrl}'
 ```
+
+### 完全な動作確認
+
+1. **ブラウザでWorkspaceを開く**
+   - Dev Spaces Dashboard → user01 → coolstore-modernization-workshop → Open
+
+2. **che-code起動確認**
+   - VS Code互換画面が表示される
+   - Extensions viewでMTA、Java、XMLがインストール済み
+
+3. **Git Clone確認**
+   - Explorer → `/projects/coolstore-eap7` が存在
+   - `.devspaces/`, `s2i/`, `src/` などが見える
+
+4. **ターミナル確認**
+   ```bash
+   # 標準ターミナル
+   Terminal → New Terminal
+   
+   # 以下を実行
+   pwd            # /projects/coolstore-eap7
+   whoami         # user
+   oc whoami      # user01
+   oc project -q  # user01-dev
+   mvn --version  # Maven 3.x
+   java --version # Java 17
+   ```
+
+5. **MTA Extension確認**
+   - Output → Migration Toolkit for Applications を選択
+   - MTA Coreログが表示される（分析実行後）
 
 ## GitOps移行計画
 
@@ -207,3 +394,4 @@ oc get devworkspace spring-to-quarkus-workshop -n user01-devspaces
 - [GitOps Migration TODO](../../docs/GITOPS_MIGRATION_TODO.md) - GitOps化の詳細手順
 - [Main README](../../README.md) - プロジェクト全体のドキュメント
 - [DevWorkspace API](https://github.com/devfile/api) - DevWorkspace CRD仕様
+- [Red Hat OpenShift Dev Spaces Documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_dev_spaces) - 公式ドキュメント
