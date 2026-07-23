@@ -23,6 +23,10 @@ metadata:
 spec:
   started: false
   routingClass: che
+  contributions:
+    - name: ide
+      uri: >-
+        http://devspaces-dashboard.openshift-devspaces.svc.cluster.local:8080/dashboard/api/editors/devfile?che-editor=che-incubator/che-code/latest
   template:
     attributes:
       controller.devfile.io/storage-type: per-workspace
@@ -47,17 +51,12 @@ spec:
           volumeMounts:
             - name: m2
               path: /home/user/.m2
-            - name: checode
-              path: /checode
           env:
             - name: MAVEN_OPTS
               value: "-Xmx2g"
       - name: m2
         volume:
           size: 10Gi
-      - name: checode
-        volume:
-          ephemeral: true
     commands:
       - id: oc-auto-login
         exec:
