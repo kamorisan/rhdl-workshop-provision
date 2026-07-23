@@ -331,31 +331,31 @@ spec:
 
         rm -f "${GENERATED_CONTAINERFILE}"
 
-        cat > "${GENERATED_CONTAINERFILE}" <<'EOF'
-FROM image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
+        cat > "${GENERATED_CONTAINERFILE}" <<'CONTAINERFILE'
+        FROM image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
 
-USER root
+        USER root
 
-# Copy the EAP 8.1 server provisioned by eap-maven-plugin.
-COPY --chown=jboss:root \
-  target/server/ \
-  /opt/server/
+        # Copy the EAP 8.1 server provisioned by eap-maven-plugin.
+        COPY --chown=jboss:root \
+          target/server/ \
+          /opt/server/
 
-# Copy the PostgreSQL JDBC custom module.
-COPY --chown=jboss:root \
-  s2i/eap-install/modules/ \
-  /opt/server/modules/
+        # Copy the PostgreSQL JDBC custom module.
+        COPY --chown=jboss:root \
+          s2i/eap-install/modules/ \
+          /opt/server/modules/
 
-# Support OpenShift arbitrary UID execution.
-RUN chown -R jboss:0 /opt/server && \
-    chmod -R g+rwX /opt/server
+        # Support OpenShift arbitrary UID execution.
+        RUN chown -R jboss:0 /opt/server && \
+            chmod -R g+rwX /opt/server
 
-EXPOSE 8080
+        EXPOSE 8080
 
-USER jboss
+        USER jboss
 
-CMD ["/opt/server/bin/standalone.sh", "-b", "0.0.0.0"]
-EOF
+        CMD ["/opt/server/bin/standalone.sh", "-b", "0.0.0.0"]
+        CONTAINERFILE
 
         echo ""
         echo "Generated Containerfile:"
