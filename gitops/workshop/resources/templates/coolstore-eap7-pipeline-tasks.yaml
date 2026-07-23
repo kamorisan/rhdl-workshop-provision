@@ -314,9 +314,18 @@ spec:
            "${ARTIFACT_DIR}/deployments/ROOT.war.dodeploy"
 
         # Copy PostgreSQL module
-        cp -a \
-          "${JBOSS_HOME}/modules/system/layers/base/org/postgresql" \
-          "${ARTIFACT_DIR}/modules/postgresql"
+        # Find where install.sh actually placed the module
+        PG_MODULE_PATH=$(find "${JBOSS_HOME}/modules" -type d -name "postgresql" -path "*/org/postgresql" 2>/dev/null | head -1)
+
+        if [ -z "${PG_MODULE_PATH}" ]; then
+          echo "ERROR: PostgreSQL module not found in ${JBOSS_HOME}/modules"
+          find "${JBOSS_HOME}/modules" -name "postgresql*" -o -name "*.jar" | grep -i postgres || true
+          exit 1
+        fi
+
+        echo "Found PostgreSQL module at: ${PG_MODULE_PATH}"
+
+        cp -a "${PG_MODULE_PATH}" "${ARTIFACT_DIR}/modules/postgresql"
 
         # Copy extension scripts
         cp -a \
