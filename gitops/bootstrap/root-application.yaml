@@ -157,3 +157,7 @@ spec:
         - /metadata/generation
         - /metadata/resourceVersion
         - /metadata/managedFields
+    - group: ""
+      kind: PersistentVolumeClaim
+      jsonPointers:
+        - /status
