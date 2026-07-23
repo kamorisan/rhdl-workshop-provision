@@ -295,9 +295,63 @@ spec:
         test -f "${DEPLOYMENTS_DIR}/ROOT.war.dodeploy" || { echo "ERROR: ROOT.war.dodeploy is missing"; exit 1; }
 
         echo ""
-        echo "Copying entire EAP installation to workspace for containerization..."
-        mkdir -p "$(workspaces.source.path)/eap-server"
-        cp -r ${JBOSS_HOME}/* "$(workspaces.source.path)/eap-server/"
+        echo "Staging EAP 7 artifacts to workspace..."
+
+        ARTIFACT_DIR="$(workspaces.source.path)/eap7-artifacts"
+
+        # Clear and create staging directory
+        rm -rf "${ARTIFACT_DIR}"
+        mkdir -p \
+          "${ARTIFACT_DIR}/deployments" \
+          "${ARTIFACT_DIR}/modules" \
+          "${ARTIFACT_DIR}/extensions"
+
+        # Copy WAR and deployment marker
+        cp "${DEPLOYMENTS_DIR}/ROOT.war" \
+           "${ARTIFACT_DIR}/deployments/ROOT.war"
+
+        cp "${DEPLOYMENTS_DIR}/ROOT.war.dodeploy" \
+           "${ARTIFACT_DIR}/deployments/ROOT.war.dodeploy"
+
+        # Copy PostgreSQL module
+        cp -a \
+          "${JBOSS_HOME}/modules/system/layers/base/org/postgresql" \
+          "${ARTIFACT_DIR}/modules/postgresql"
+
+        # Copy extension scripts
+        cp -a \
+          "${JBOSS_HOME}/extensions/." \
+          "${ARTIFACT_DIR}/extensions/"
+
+        echo ""
+        echo "Staged EAP 7 artifacts:"
+        find "${ARTIFACT_DIR}" -maxdepth 4 -ls
+
+        # Validate staged artifacts
+        echo ""
+        echo "Validating staged artifacts..."
+
+        test -s "${ARTIFACT_DIR}/deployments/ROOT.war" || {
+          echo "ERROR: staged ROOT.war is missing or empty"
+          exit 1
+        }
+
+        test -f "${ARTIFACT_DIR}/deployments/ROOT.war.dodeploy" || {
+          echo "ERROR: staged ROOT.war.dodeploy is missing"
+          exit 1
+        }
+
+        test -f "${ARTIFACT_DIR}/modules/postgresql/main/module.xml" || {
+          echo "ERROR: PostgreSQL module.xml is missing"
+          exit 1
+        }
+
+        test -x "${ARTIFACT_DIR}/extensions/delayedpostconfigure.sh" || {
+          echo "ERROR: delayedpostconfigure.sh is not executable"
+          exit 1
+        }
+
+        echo "✓ All artifacts validated"
 
         echo ""
         echo "======================================"
@@ -340,19 +394,28 @@ spec:
 
         USER root
 
-        # Copy WAR to S2I deployments directory
-        # S2I runtime will deploy this to /opt/eap/standalone/deployments during startup
-        COPY --chown=jboss:root eap-server/standalone/deployments/ROOT.war /deployments/
+        # Copy WAR and deployment marker directly to EAP deployments directory
+        # Deployment Scanner monitors /opt/eap/standalone/deployments
+        COPY --chown=jboss:root \
+          eap7-artifacts/deployments/ \
+          /opt/eap/standalone/deployments/
 
-        # Copy PostgreSQL module
-        COPY --chown=jboss:root eap-server/modules/system/layers/base/org /opt/eap/modules/system/layers/base/org
+        # Copy PostgreSQL JDBC module
+        COPY --chown=jboss:root \
+          eap7-artifacts/modules/postgresql/ \
+          /opt/eap/modules/system/layers/base/org/postgresql/
 
-        # Copy extension scripts
-        COPY --chown=jboss:root eap-server/extensions /opt/eap/extensions
+        # Copy EAP extension scripts (postconfigure, delayedpostconfigure, messaging.cli)
+        COPY --chown=jboss:root \
+          eap7-artifacts/extensions/ \
+          /opt/eap/extensions/
 
-        # Fix permissions for OpenShift
-        RUN chown -R jboss:root /deployments /opt/eap/modules/system/layers/base/org /opt/eap/extensions && \
-            chmod -R g+rwX /deployments /opt/eap/modules /opt/eap/extensions
+        # Fix permissions for OpenShift (random UID, gid 0)
+        RUN chmod -R g+rwX \
+              /opt/eap/standalone/deployments \
+              /opt/eap/modules/system/layers/base/org/postgresql \
+              /opt/eap/extensions && \
+            chmod +x /opt/eap/extensions/*.sh
 
         USER jboss
 
@@ -364,7 +427,7 @@ spec:
         # - Placeholder expansion (##CONSOLE-FORMATTER##, etc.)
         # - Environment variable-based Datasource configuration
         # - postconfigure.sh execution
-        # - WAR deployment from /deployments/ to /opt/eap/standalone/deployments/
+        # - Deployment Scanner processes ROOT.war with .dodeploy marker
         # - delayedpostconfigure.sh execution
         EOF
 
