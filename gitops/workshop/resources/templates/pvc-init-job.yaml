@@ -1,0 +1,61 @@
+{{- $userCount := .Values.workshop.userCount | int }}
+{{- $usernamePrefix := .Values.workshop.usernamePrefix }}
+{{- $namespaceSuffix := .Values.workshop.namespaceSuffix }}
+{{- range $i := untilStep 1 (int (add1 $userCount)) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+---
+# Job: pvc-init (one-time PVC initialization)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pvc-init
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: pvc-init
+    workshop.user: {{ $username }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: pvc-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: init
+          image: registry.redhat.io/ubi9/ubi-minimal:latest
+          workingDir: /workspace
+          command:
+            - /bin/sh
+            - -c
+            - |
+              #!/bin/sh
+              set -e
+              echo "======================================"
+              echo "Initializing PVC Workspace"
+              echo "======================================"
+              echo "Namespace: {{ $namespace }}"
+              echo "Creating .initialized marker file"
+              date > .initialized
+              echo ""
+              echo "Workspace contents:"
+              ls -la
+              echo ""
+              echo "======================================"
+              echo "✓ Workspace Initialized"
+              echo "======================================"
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: pipeline-workspace-pvc
+{{- end }}
