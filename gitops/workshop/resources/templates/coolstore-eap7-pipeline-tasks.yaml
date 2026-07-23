@@ -340,12 +340,18 @@ spec:
 
         USER root
 
-        # Copy the entire EAP installation with deployments and modules
-        COPY --chown=jboss:root eap-server /opt/eap
+        # Copy PostgreSQL module and extension scripts from build
+        # S2I runtime will process these during startup
+        COPY --chown=jboss:root eap-server/modules/ /opt/eap/modules/
+        COPY --chown=jboss:root eap-server/extensions/ /opt/eap/extensions/
+
+        # Copy WAR to S2I deployments directory
+        # S2I runtime will deploy this to /opt/eap/standalone/deployments during startup
+        COPY --chown=jboss:root eap-server/standalone/deployments/ROOT.war /deployments/ROOT.war
 
         # Fix permissions for OpenShift
-        RUN chown -R jboss:root /opt/eap && \
-            chmod -R g+rwX /opt/eap
+        RUN chown -R jboss:root /opt/eap/modules /opt/eap/extensions /deployments && \
+            chmod -R g+rwX /opt/eap/modules /opt/eap/extensions /deployments
 
         USER jboss
 
@@ -357,6 +363,7 @@ spec:
         # - Placeholder expansion (##CONSOLE-FORMATTER##, etc.)
         # - Environment variable-based Datasource configuration
         # - postconfigure.sh execution
+        # - WAR deployment from /deployments/ to /opt/eap/standalone/deployments/
         # - delayedpostconfigure.sh execution
         EOF
 
