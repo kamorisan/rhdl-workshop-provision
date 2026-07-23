@@ -46,3 +46,12 @@ metadata:
 spec:
   lookupPolicy:
     local: false
+  tags:
+    - name: "7.4"
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/jboss-eap-7/eap74-openjdk11-openshift-rhel8:7.4
+      importPolicy:
+        scheduled: true
+      referencePolicy:
+        type: Source
