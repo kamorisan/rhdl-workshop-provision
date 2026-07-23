@@ -306,14 +306,14 @@ spec:
         }
 
         test -f \
-          "s2i/eap-install/modules/org/postgresql/main/module.xml" || {
+          "s2i/eap8-install/modules/org/postgresql/main/module.xml" || {
           echo "ERROR: PostgreSQL module.xml does not exist"
           exit 1
         }
 
         POSTGRESQL_JAR=$(
           find \
-            "s2i/eap-install/modules/org/postgresql/main" \
+            "s2i/eap8-install/modules/org/postgresql/main" \
             -maxdepth 1 \
             -type f \
             -name 'postgresql-*.jar' \
@@ -326,8 +326,41 @@ spec:
         fi
 
         echo "EAP server: target/server"
-        echo "PostgreSQL module: s2i/eap-install/modules/org/postgresql"
+        echo "PostgreSQL module: s2i/eap8-install/modules/org/postgresql"
         echo "PostgreSQL JAR: ${POSTGRESQL_JAR}"
+
+        echo ""
+        echo "Validating EAP 8 PostgreSQL module dependencies..."
+        EAP8_MODULE_XML="s2i/eap8-install/modules/org/postgresql/main/module.xml"
+
+        if grep -Eq \
+          'name="javax\.api"|name="javax\.transaction\.api"' \
+          "${EAP8_MODULE_XML}"; then
+          echo "ERROR: EAP 7 module dependencies were found in the EAP 8 PostgreSQL module.xml"
+          exit 1
+        fi
+
+        grep -q 'name="java.sql"' "${EAP8_MODULE_XML}" || {
+          echo "ERROR: java.sql dependency is missing from the EAP 8 PostgreSQL module.xml"
+          exit 1
+        }
+
+        grep -q 'name="java.naming"' "${EAP8_MODULE_XML}" || {
+          echo "ERROR: java.naming dependency is missing from the EAP 8 PostgreSQL module.xml"
+          exit 1
+        }
+
+        grep -q 'name="java.management"' "${EAP8_MODULE_XML}" || {
+          echo "ERROR: java.management dependency is missing from the EAP 8 PostgreSQL module.xml"
+          exit 1
+        }
+
+        grep -q 'name="jakarta.transaction.api"' "${EAP8_MODULE_XML}" || {
+          echo "ERROR: jakarta.transaction.api dependency is missing from the EAP 8 PostgreSQL module.xml"
+          exit 1
+        }
+
+        echo "✓ EAP 8 module dependencies validated"
 
         rm -f "${GENERATED_CONTAINERFILE}"
 
@@ -343,7 +376,7 @@ spec:
 
         # Copy the PostgreSQL JDBC custom module.
         COPY --chown=jboss:root \
-          s2i/eap-install/modules/ \
+          s2i/eap8-install/modules/ \
           /opt/server/modules/
 
         # Support OpenShift arbitrary UID execution.
