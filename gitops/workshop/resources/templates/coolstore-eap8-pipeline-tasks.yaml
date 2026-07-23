@@ -276,8 +276,101 @@ spec:
       description: Complete destination image reference
   workspaces:
     - name: source
-      description: Workspace containing the Containerfile and build context
+      description: Workspace containing the generated server and build context
+
   steps:
+    - name: create-containerfile
+      image: busybox:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+
+        GENERATED_CONTAINERFILE="Containerfile.eap8.generated"
+
+        echo "======================================"
+        echo "Creating Containerfile for EAP 8.1"
+        echo "======================================"
+
+        echo ""
+        echo "Validating EAP 8 build artifacts..."
+
+        test -d "target/server" || {
+          echo "ERROR: target/server does not exist"
+          exit 1
+        }
+
+        test -f "target/server/bin/standalone.sh" || {
+          echo "ERROR: target/server/bin/standalone.sh does not exist"
+          exit 1
+        }
+
+        test -f \
+          "s2i/eap-install/modules/org/postgresql/main/module.xml" || {
+          echo "ERROR: PostgreSQL module.xml does not exist"
+          exit 1
+        }
+
+        POSTGRESQL_JAR=$(
+          find \
+            "s2i/eap-install/modules/org/postgresql/main" \
+            -maxdepth 1 \
+            -type f \
+            -name 'postgresql-*.jar' \
+            | head -1
+        )
+
+        if [ -z "${POSTGRESQL_JAR}" ]; then
+          echo "ERROR: PostgreSQL JDBC Driver JAR does not exist"
+          exit 1
+        fi
+
+        echo "EAP server: target/server"
+        echo "PostgreSQL module: s2i/eap-install/modules/org/postgresql"
+        echo "PostgreSQL JAR: ${POSTGRESQL_JAR}"
+
+        rm -f "${GENERATED_CONTAINERFILE}"
+
+        cat > "${GENERATED_CONTAINERFILE}" <<'EOF'
+FROM image-registry.openshift-image-registry.svc:5000/workshop-images/eap81-runtime:8.1
+
+USER root
+
+# Copy the EAP 8.1 server provisioned by eap-maven-plugin.
+COPY --chown=jboss:root \
+  target/server/ \
+  /opt/server/
+
+# Copy the PostgreSQL JDBC custom module.
+COPY --chown=jboss:root \
+  s2i/eap-install/modules/ \
+  /opt/server/modules/
+
+# Support OpenShift arbitrary UID execution.
+RUN chown -R jboss:0 /opt/server && \
+    chmod -R g+rwX /opt/server
+
+EXPOSE 8080
+
+USER jboss
+
+CMD ["/opt/server/bin/standalone.sh", "-b", "0.0.0.0"]
+EOF
+
+        echo ""
+        echo "Generated Containerfile:"
+        echo "--------------------------------------"
+        cat "${GENERATED_CONTAINERFILE}"
+        echo "--------------------------------------"
+
+        test -s "${GENERATED_CONTAINERFILE}" || {
+          echo "ERROR: Generated Containerfile is missing or empty"
+          exit 1
+        }
+
+        echo ""
+        echo "✓ Containerfile generated successfully"
+
     - name: build-and-push
       image: quay.io/buildah/stable:latest
       workingDir: $(workspaces.source.path)
@@ -288,18 +381,36 @@ spec:
         set -e
 
         IMAGE="$(params.IMAGE)"
+        GENERATED_CONTAINERFILE="Containerfile.eap8.generated"
 
         echo "======================================"
-        echo "Building and Pushing Container Image"
+        echo "Building and Pushing EAP 8.1 Image"
         echo "======================================"
         echo "Image: ${IMAGE}"
+        echo "Containerfile: ${GENERATED_CONTAINERFILE}"
         echo ""
 
-        buildah bud --format=oci --tls-verify=false --pull=always --no-cache -f Containerfile -t "${IMAGE}" .
+        test -s "${GENERATED_CONTAINERFILE}" || {
+          echo "ERROR: ${GENERATED_CONTAINERFILE} does not exist"
+          exit 1
+        }
+
+        buildah bud \
+          --format=oci \
+          --tls-verify=false \
+          --pull=always \
+          --no-cache \
+          -f "${GENERATED_CONTAINERFILE}" \
+          -t "${IMAGE}" \
+          .
 
         echo ""
         echo "Pushing image to registry..."
-        buildah push --tls-verify=false "${IMAGE}" "docker://${IMAGE}"
+
+        buildah push \
+          --tls-verify=false \
+          "${IMAGE}" \
+          "docker://${IMAGE}"
 
         echo ""
         echo "======================================"
