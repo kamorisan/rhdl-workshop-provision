@@ -595,31 +595,70 @@ echo "DevSpaces URL: https://${DEVSPACES_URL}"
 
 #### 8.2 DevWorkspace一括作成
 
-スクリプトで全ユーザーのDevWorkspaceを一括作成：
+**重要**: DevWorkspace作成は3ステップで実行されます。
 
 ```bash
 cd scripts/workspace
 
-# 全ユーザーのDevWorkspace作成
+# メインスクリプト実行（3ステップを自動実行）
+./setup-all-workspaces.sh
+```
+
+**または個別に実行**:
+
+```bash
+# Step 1: ユーザー権限設定
+./setup-user-permissions.sh
+
+# Step 2: che-code DevWorkspaceTemplate作成
+./setup-che-code-templates.sh
+
+# Step 3: DevWorkspace作成
 ./create-all-workspaces.sh
 ```
 
 **処理内容**:
-1. Gitea routeを自動検出
-2. user01-user10のDevWorkspace CRを作成
-3. Git URLに認証情報を埋め込み (`https://user01:openshift@gitea.../repo.git`)
-4. postStart eventsを設定:
-   - `setup-mta-config`: MTA設定自動配置
-   - `oc-auto-login`: OpenShiftユーザー認証
+
+**Step 1: 権限設定**
+- user01-user10に各namespaceへのview/edit権限を付与
+
+**Step 2: DevWorkspaceTemplate作成**
+- 各ユーザーnamespaceに `che-code-coolstore-modernization-workshop` テンプレートを作成
+- che-code IDE本体の定義（injector、runtime、endpoints）
+- VS Code拡張機能の自動インストール設定:
+  - Migration Toolkit for Applications (MTA) Core
+  - Language Support for Java
+  - XML Language Support
+
+**Step 3: DevWorkspace作成**
+- Gitea内部Service名を使用 (`gitea-http.gitea.svc.cluster.local:3000`)
+- user01-user10のDevWorkspace CRを作成
+- Git URLに認証情報を埋め込み (`http://user01:openshift@gitea-http.../repo.git`)
+- カスタムDevWorkspaceTemplateを参照（`spec.contributions`）
+- postStart eventsを設定:
+  - `setup-mta-config`: MTA設定自動配置
+  - `oc-auto-login`: OpenShiftユーザー認証
 
 **期待される結果**:
 ```
+Step 1/3: Setting up user permissions...
+[1/10] Processing user01...
+  ✅ view role granted
+  ✅ edit role granted
+...
+
+Step 2/3: Creating che-code templates...
+[1/10] Creating template for user01-devspaces...
+  ✅ DevWorkspaceTemplate created
+...
+
+Step 3/3: Creating DevWorkspaces...
 [1/10] Processing user01...
   ✅ DevWorkspace created
 [2/10] Processing user02...
   ✅ DevWorkspace created
 ...
-✅ DevWorkspace creation complete!
+✅ Complete workshop workspace setup finished!
 ```
 
 #### 8.3 DevWorkspace確認
@@ -641,10 +680,24 @@ done
 2. user01 / openshiftでログイン
 3. Workspace "coolstore-modernization-workshop"が表示される
 4. "Open"をクリック
-5. Workspaceが起動：
-   - coolstore-eap7リポジトリがクローンされる
-   - postStartイベントが実行される（MTA設定、oc login）
-   - VS Code IDEが起動
+5. Workspaceが起動（初回起動: 約2-3分）：
+   - **che-code注入**: カスタムDevWorkspaceTemplateから自動実行
+   - **Git Clone**: Gitea内部Serviceから `coolstore-eap7` をクローン
+   - **VS Code拡張機能インストール**: MTA Core、Java、XMLが自動インストール
+   - **postStartイベント実行**: MTA設定配置、OpenShiftログイン
+   - **VS Code IDE起動**: Port 3100でche-codeが起動、ブラウザで表示
+
+6. Workspace動作確認：
+   - Explorer → `/projects/coolstore-eap7` が存在
+   - Extensions → MTA Core、Java、XMLがインストール済み
+   - `Terminal` → `New Terminal` が動作（`dev-tools`コンテナ）
+   - ターミナルで確認:
+     ```bash
+     pwd            # /projects/coolstore-eap7
+     whoami         # user
+     oc whoami      # user01
+     oc project -q  # user01-dev
+     ```
 
 ---
 
@@ -750,8 +803,14 @@ curl -sk "https://${ROUTE}/" | grep "Cool Store"
 
 - [ ] DevSpaces Pod: Running
 - [ ] Route: HTTPSアクセス可能
-- [ ] DevWorkspace: user01-user10全員作成済み
-- [ ] user01でWorkspace起動テスト成功
+- [ ] DevWorkspaceTemplate: che-code-coolstore-modernization-workshop 全ユーザーnamespaceに作成済み
+- [ ] DevWorkspace: coolstore-modernization-workshop 全ユーザー作成済み
+- [ ] DevWorkspace contributions: カスタムTemplateを参照（`kubernetes.name`方式）
+- [ ] user01でWorkspace起動テスト成功（mainUrl生成確認）
+- [ ] che-code注入確認: /checode/entrypoint-volume.sh 存在
+- [ ] Git Clone確認: /projects/coolstore-eap7 存在（内部Service経由）
+- [ ] VS Code拡張機能: MTA Core、Java、XMLインストール済み
+- [ ] Terminal動作確認: `Terminal → New Terminal` が開く
 - [ ] postStart events: setup-mta-config、oc-auto-login実行確認
 
 ### S2Iデプロイ（推奨テスト）
@@ -909,10 +968,97 @@ USER_COUNT=1 ./scripts/gitea-populate-coolstore.sh  # user01のみ
 
 ### DevSpaces Workspaceが起動しない
 
-**確認事項**:
-1. devfile.yamlがリポジトリに存在するか
-2. Git URLが正しいか（各ユーザーのGitea URL）
-3. DevSpaces Podログ確認: `oc logs -n openshift-devspaces <pod>`
+**症状1**: Workspace Phase=Running だが mainUrl が空
+
+**原因**: che-codeが注入されていない、またはDevWorkspaceTemplateが参照されていない
+
+**確認**:
+```bash
+# DevWorkspace contributions確認
+oc get devworkspace coolstore-modernization-workshop -n user01-devspaces \
+  -o jsonpath='{.spec.contributions}' | jq .
+
+# 期待される結果:
+# [{"kubernetes":{"name":"che-code-coolstore-modernization-workshop"},"name":"editor"}]
+
+# DevWorkspaceTemplate存在確認
+oc get devworkspacetemplate che-code-coolstore-modernization-workshop \
+  -n user01-devspaces
+
+# Pod内che-code確認
+POD=$(oc get pods -n user01-devspaces -l controller.devfile.io/devworkspace_name=coolstore-modernization-workshop -o jsonpath='{.items[0].metadata.name}')
+oc exec -n user01-devspaces "$POD" -c dev-tools -- ls -la /checode/entrypoint-volume.sh
+```
+
+**解決**: setup-che-code-templates.sh を再実行、DevWorkspaceを再作成
+
+---
+
+**症状2**: Git Cloneが失敗する
+
+**原因**: Gitea内部Service名が間違っている、または認証情報が不正
+
+**確認**:
+```bash
+# Git URL確認
+oc get devworkspace coolstore-modernization-workshop -n user01-devspaces \
+  -o jsonpath='{.spec.template.projects[0].git.remotes.origin}' && echo
+
+# 期待される結果:
+# http://user01:openshift@gitea-http.gitea.svc.cluster.local:3000/user01/coolstore-eap7
+
+# Git Clone エラーログ確認
+oc exec -n user01-devspaces "$POD" -c dev-tools -- cat /projects/project-clone-errors.log
+
+# Gitea Service確認
+oc get svc -n gitea gitea-http
+```
+
+**解決**: Git URLをGitea内部Service名に修正、DevWorkspace再作成
+
+---
+
+**症状3**: ターミナルが開かない（`New Terminal`が空白）
+
+**原因**: ptyHostが起動していない、またはche-codeが正しく注入されていない
+
+**確認**:
+```bash
+# ptyHostプロセス確認
+oc exec -n user01-devspaces "$POD" -c dev-tools -- ps aux | grep ptyHost
+
+# che-code server確認（port 3100）
+oc exec -n user01-devspaces "$POD" -c dev-tools -- ps aux | grep 3100
+```
+
+**解決**: カスタムDevWorkspaceTemplateを参照する構成に修正（`spec.contributions.kubernetes.name`）
+
+---
+
+**症状4**: VS Code拡張機能がインストールされない
+
+**原因**: DevWorkspaceTemplateの拡張機能定義が欠落
+
+**確認**:
+```bash
+# DevWorkspaceTemplate拡張機能定義確認
+oc get devworkspacetemplate che-code-coolstore-modernization-workshop \
+  -n user01-devspaces \
+  -o jsonpath='{.spec.components[1].attributes.che-code\.eclipse\.org/vscode-extensions}' | jq .
+
+# 期待される結果:
+# [
+#   "https://open-vsx.org/api/redhat/mta-core/1.5.0/file/redhat.mta-core-1.5.0.vsix",
+#   "https://open-vsx.org/api/redhat/vscode-java/1.33.0/file/redhat.vscode-java-1.33.0.vsix",
+#   "https://open-vsx.org/api/redhat/vscode-xml/0.27.0/file/redhat.vscode-xml-0.27.0.vsix"
+# ]
+
+# 拡張機能ログ確認
+oc exec -n user01-devspaces "$POD" -c dev-tools -- \
+  ls -la /checode/remote/data/logs/*/exthost*/
+```
+
+**解決**: setup-che-code-templates.sh が正しく実行されていることを確認
 
 ### S2I BuildがGit認証エラーで失敗
 
