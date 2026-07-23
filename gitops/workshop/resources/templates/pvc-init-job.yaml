@@ -13,8 +13,7 @@ metadata:
   name: pvc-init
   namespace: {{ $namespace }}
   annotations:
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop
