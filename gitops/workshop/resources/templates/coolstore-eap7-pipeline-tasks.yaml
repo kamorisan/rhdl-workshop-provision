@@ -225,6 +225,14 @@ spec:
         echo "Installing PostgreSQL JDBC module"
         if [ -f "${INJECTED_DIR}/install.sh" ]; then
           bash "${INJECTED_DIR}/install.sh" "${INJECTED_DIR}"
+
+          # Ensure all extension shell scripts are executable
+          # (install.sh may not set permissions on all scripts)
+          echo "Ensuring extension scripts are executable..."
+          if compgen -G "${JBOSS_HOME}/extensions/*.sh" > /dev/null; then
+            chmod +x "${JBOSS_HOME}/extensions/"*.sh
+            echo "Set execute permissions on extension scripts"
+          fi
         else
           # Manual installation if install.sh is not present
           echo "Installing modules manually..."
@@ -261,12 +269,30 @@ spec:
         ls -la "${DEPLOYMENTS_DIR}/"
 
         echo ""
-        echo "Creating deployment marker (ROOT.war)..."
+        echo "Normalizing WAR name to ROOT.war..."
         if [ "${WAR_NAME}" != "ROOT.war" ]; then
           # Rename to ROOT.war for root context deployment
           mv "${DEPLOYMENTS_DIR}/${WAR_NAME}" "${DEPLOYMENTS_DIR}/ROOT.war"
           echo "Renamed ${WAR_NAME} to ROOT.war"
         fi
+
+        echo ""
+        echo "Creating deployment marker (ROOT.war.dodeploy)..."
+        # Explicitly request deployment from the EAP deployment scanner
+        touch "${DEPLOYMENTS_DIR}/ROOT.war.dodeploy"
+        echo "Created ROOT.war.dodeploy"
+
+        echo ""
+        echo "Final deployments directory contents:"
+        ls -la "${DEPLOYMENTS_DIR}/"
+
+        echo ""
+        echo "Extension scripts:"
+        ls -la "${JBOSS_HOME}/extensions/" 2>/dev/null || echo "No extensions directory"
+
+        # Verify critical files exist
+        test -s "${DEPLOYMENTS_DIR}/ROOT.war" || { echo "ERROR: ROOT.war is missing or empty"; exit 1; }
+        test -f "${DEPLOYMENTS_DIR}/ROOT.war.dodeploy" || { echo "ERROR: ROOT.war.dodeploy is missing"; exit 1; }
 
         echo ""
         echo "Copying entire EAP installation to workspace for containerization..."
