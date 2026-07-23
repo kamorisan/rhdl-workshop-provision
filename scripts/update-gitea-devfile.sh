@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEVFILE_SOURCE="${SCRIPT_DIR}/../Gitea/coolstore-eap7/devfile.yaml"
+DEVFILE_SOURCE="${SCRIPT_DIR}/../../coolstore-eap7/devfile.yaml"
 
 # Check if devfile exists
 if [ ! -f "$DEVFILE_SOURCE" ]; then
