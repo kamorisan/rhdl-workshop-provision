@@ -1,0 +1,539 @@
+{{- $userCount := .Values.workshop.userCount | int }}
+{{- $usernamePrefix := .Values.workshop.usernamePrefix }}
+{{- $namespaceSuffix := .Values.workshop.namespaceSuffix }}
+{{- $giteaBaseUrl := .Values.gitea.baseUrl }}
+{{- $clusterDomain := .Values.cluster.domain }}
+{{- range $i := untilStep 1 (int (add1 $userCount)) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $usernamePrefix $id }}
+{{- $namespace := printf "%s%s" $username $namespaceSuffix }}
+{{- $giteaRepoUrl := printf "%s/%s/coolstore-eap7.git" $giteaBaseUrl $username }}
+{{- $giteaHost := regexReplaceAll "https?://" $giteaBaseUrl "" }}
+---
+# Pipeline: coolstore-eap7-pipeline
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: coolstore-eap7-pipeline
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: GIT_URL
+      type: string
+      description: Git repository URL
+      default: {{ $giteaRepoUrl }}
+    - name: GIT_REVISION
+      type: string
+      description: Git branch/tag/commit
+      default: main
+    - name: IMAGE_NAME
+      type: string
+      description: Container image name
+      default: coolstore-eap7:latest
+    - name: APP_NAME
+      type: string
+      description: Application name
+      default: coolstore-eap7
+  workspaces:
+    - name: source
+      description: Shared workspace for pipeline tasks
+  tasks:
+    - name: git-clone
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.GIT_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+      workspaces:
+        - name: source
+          workspace: source
+
+    - name: maven-build
+      taskRef:
+        name: maven-build-eap7
+      workspaces:
+        - name: source
+          workspace: source
+      runAfter:
+        - git-clone
+
+    - name: apply-s2i
+      taskRef:
+        name: apply-s2i-eap7
+      workspaces:
+        - name: source
+          workspace: source
+      runAfter:
+        - maven-build
+
+    - name: build-image
+      taskRef:
+        name: build-image-eap7
+      params:
+        - name: IMAGE
+          value: image-registry.openshift-image-registry.svc:5000/{{ $namespace }}/$(params.IMAGE_NAME)
+      workspaces:
+        - name: source
+          workspace: source
+      runAfter:
+        - apply-s2i
+
+    - name: deploy
+      taskRef:
+        name: deploy-eap7
+      params:
+        - name: NAMESPACE
+          value: {{ $namespace }}
+        - name: APP_NAME
+          value: $(params.APP_NAME)
+      workspaces:
+        - name: source
+          workspace: source
+      runAfter:
+        - build-image
+---
+# Task: maven-build-eap7
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: maven-build-eap7
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+  steps:
+    - name: build
+      image: image-registry.openshift-image-registry.svc:5000/workshop-images/eap74-els:7.4
+      imagePullPolicy: Always
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "======================================"
+        echo "Maven Build with EAP 7.4 ELS"
+        echo "======================================"
+
+        # Create Maven settings.xml with Red Hat repositories
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml <<'MAVEN_SETTINGS'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <profiles>
+            <profile>
+              <id>redhat-repos</id>
+              <repositories>
+                <repository>
+                  <id>redhat-ga</id>
+                  <url>https://maven.repository.redhat.com/ga/</url>
+                  <releases><enabled>true</enabled></releases>
+                  <snapshots><enabled>false</enabled></snapshots>
+                </repository>
+              </repositories>
+              <pluginRepositories>
+                <pluginRepository>
+                  <id>redhat-ga</id>
+                  <url>https://maven.repository.redhat.com/ga/</url>
+                  <releases><enabled>true</enabled></releases>
+                  <snapshots><enabled>false</enabled></snapshots>
+                </pluginRepository>
+              </pluginRepositories>
+            </profile>
+          </profiles>
+          <activeProfiles>
+            <activeProfile>redhat-repos</activeProfile>
+          </activeProfiles>
+        </settings>
+        MAVEN_SETTINGS
+
+        echo "Maven settings.xml configured with Red Hat repositories"
+        echo ""
+
+        mvn clean package -DskipTests
+
+        echo ""
+        echo "Build completed. Checking target..."
+        ls -la target/ || echo "WARNING: target not found"
+
+        echo ""
+        echo "WAR file:"
+        ls -la target/*.war || echo "No WAR file found"
+---
+# Task: apply-s2i-eap7
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: apply-s2i-eap7
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+  steps:
+    - name: s2i-custom-install
+      image: image-registry.openshift-image-registry.svc:5000/workshop-images/eap74-els:7.4
+      imagePullPolicy: Always
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "======================================"
+        echo "EAP 7 S2I Custom Installation"
+        echo "======================================"
+
+        INJECTED_DIR="$(workspaces.source.path)/s2i/eap-install"
+        JBOSS_HOME="/opt/eap"
+        DEPLOYMENTS_DIR="${JBOSS_HOME}/standalone/deployments"
+
+        if [ ! -d "${INJECTED_DIR}" ]; then
+          echo "ERROR: ${INJECTED_DIR} does not exist"
+          exit 1
+        fi
+
+        # Source S2I install functions (from base image)
+        if [ -f "/usr/local/s2i/install-common.sh" ]; then
+          source /usr/local/s2i/install-common.sh
+        fi
+
+        echo "Installing PostgreSQL JDBC module"
+        if [ -f "${INJECTED_DIR}/install.sh" ]; then
+          bash "${INJECTED_DIR}/install.sh" "${INJECTED_DIR}"
+        else
+          # Manual installation if install.sh is not present
+          echo "Installing modules manually..."
+          if [ -d "${INJECTED_DIR}/modules" ]; then
+            mkdir -p "${JBOSS_HOME}/modules/system/layers/base"
+            cp -r "${INJECTED_DIR}/modules/"* "${JBOSS_HOME}/modules/system/layers/base/"
+          fi
+
+          if [ -f "${INJECTED_DIR}/drivers.env" ]; then
+            source "${INJECTED_DIR}/drivers.env"
+            echo "Loaded drivers configuration"
+          fi
+        fi
+
+        echo ""
+        echo "Copying WAR file to deployments directory..."
+        mkdir -p "${DEPLOYMENTS_DIR}"
+
+        WAR_FILE=$(find target -name "*.war" | head -1)
+
+        if [ -z "${WAR_FILE}" ]; then
+          echo "ERROR: No WAR file found in target directory"
+          ls -la target/ || true
+          exit 1
+        fi
+
+        cp "${WAR_FILE}" "${DEPLOYMENTS_DIR}/"
+
+        WAR_NAME=$(basename "${WAR_FILE}")
+        echo "Copied ${WAR_NAME} to ${DEPLOYMENTS_DIR}/"
+
+        echo ""
+        echo "Deployments directory contents:"
+        ls -la "${DEPLOYMENTS_DIR}/"
+
+        echo ""
+        echo "Creating deployment marker (ROOT.war)..."
+        if [ "${WAR_NAME}" != "ROOT.war" ]; then
+          # Rename to ROOT.war for root context deployment
+          mv "${DEPLOYMENTS_DIR}/${WAR_NAME}" "${DEPLOYMENTS_DIR}/ROOT.war"
+          echo "Renamed ${WAR_NAME} to ROOT.war"
+        fi
+
+        echo ""
+        echo "Copying entire EAP installation to workspace for containerization..."
+        mkdir -p "$(workspaces.source.path)/eap-server"
+        cp -r ${JBOSS_HOME}/* "$(workspaces.source.path)/eap-server/"
+
+        echo ""
+        echo "======================================"
+        echo "✓ S2I Custom Installation Completed"
+        echo "======================================"
+---
+# Task: build-image-eap7
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-image-eap7
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: IMAGE
+      type: string
+      description: Complete destination image reference
+  workspaces:
+    - name: source
+      description: Workspace containing the build context
+  steps:
+    - name: create-containerfile
+      image: busybox:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+
+        echo "Creating Containerfile for EAP 7..."
+
+        cat > Containerfile <<'EOF'
+        FROM image-registry.openshift-image-registry.svc:5000/workshop-images/eap74-els:7.4
+
+        # Copy the entire EAP installation with deployments and modules
+        COPY --chown=jboss:root eap-server /opt/eap
+
+        USER jboss
+
+        EXPOSE 8080
+
+        CMD ["/opt/eap/bin/standalone.sh", "-b", "0.0.0.0"]
+        EOF
+
+        echo "Containerfile created:"
+        cat Containerfile
+
+    - name: build-and-push
+      image: quay.io/buildah/stable:latest
+      workingDir: $(workspaces.source.path)
+      securityContext:
+        privileged: true
+      script: |
+        #!/bin/bash
+        set -e
+
+        IMAGE="$(params.IMAGE)"
+
+        echo "======================================"
+        echo "Building and Pushing Container Image"
+        echo "======================================"
+        echo "Image: ${IMAGE}"
+        echo ""
+
+        buildah bud --format=oci --tls-verify=false --pull=always --no-cache -f Containerfile -t "${IMAGE}" .
+
+        echo ""
+        echo "Pushing image to registry..."
+        buildah push --tls-verify=false "${IMAGE}" "docker://${IMAGE}"
+
+        echo ""
+        echo "======================================"
+        echo "✓ Image Built and Pushed Successfully"
+        echo "======================================"
+---
+# Task: deploy-eap7
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: deploy-eap7
+  namespace: {{ $namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: tekton-pipeline
+    workshop.user: {{ $username }}
+spec:
+  params:
+    - name: NAMESPACE
+      type: string
+      description: Target namespace
+    - name: APP_NAME
+      type: string
+      description: Application name
+      default: coolstore-eap7
+  workspaces:
+    - name: source
+      description: Workspace containing manifests
+  steps:
+    - name: create-manifests
+      image: busybox:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+
+        echo "Creating deployment manifests for EAP 7..."
+
+        mkdir -p openshift-eap7
+
+        cat > openshift-eap7/deployment.yaml <<EOF
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: $(params.APP_NAME)
+          labels:
+            app: $(params.APP_NAME)
+            app.kubernetes.io/part-of: coolstore
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: $(params.APP_NAME)
+          template:
+            metadata:
+              labels:
+                app: $(params.APP_NAME)
+            spec:
+              containers:
+                - name: $(params.APP_NAME)
+                  image: image-registry.openshift-image-registry.svc:5000/$(params.NAMESPACE)/coolstore-eap7:latest
+                  imagePullPolicy: Always
+                  ports:
+                    - containerPort: 8080
+                      protocol: TCP
+                  resources:
+                    requests:
+                      cpu: "200m"
+                      memory: "512Mi"
+                    limits:
+                      cpu: "1000m"
+                      memory: "1Gi"
+                  env:
+                    - name: DB_SERVICE_PREFIX_MAPPING
+                      value: coolstore-postgresql=DB
+                    - name: COOLSTORE_POSTGRESQL_SERVICE_HOST
+                      value: postgresql
+                    - name: COOLSTORE_POSTGRESQL_SERVICE_PORT
+                      value: "5432"
+                    - name: DB_JNDI
+                      value: java:jboss/datasources/CoolstoreDS
+                    - name: DB_DRIVER
+                      value: postgresql
+                    - name: DB_NONXA
+                      value: "true"
+                    - name: DB_JTA
+                      value: "true"
+                    - name: DB_MIN_POOL_SIZE
+                      value: "1"
+                    - name: DB_MAX_POOL_SIZE
+                      value: "20"
+                    - name: DB_VALIDATE_ON_MATCH
+                      value: "true"
+                    - name: DB_BACKGROUND_VALIDATION
+                      value: "false"
+                    - name: DB_DATABASE
+                      valueFrom:
+                        secretKeyRef:
+                          name: coolstore-db-secret
+                          key: DB_NAME
+                    - name: DB_USERNAME
+                      valueFrom:
+                        secretKeyRef:
+                          name: coolstore-db-secret
+                          key: DB_USERNAME
+                    - name: DB_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                          name: coolstore-db-secret
+                          key: DB_PASSWORD
+                  livenessProbe:
+                    httpGet:
+                      path: /
+                      port: 8080
+                    initialDelaySeconds: 60
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /
+                      port: 8080
+                    initialDelaySeconds: 30
+                    periodSeconds: 5
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: $(params.APP_NAME)
+          labels:
+            app: $(params.APP_NAME)
+        spec:
+          ports:
+            - name: http
+              port: 8080
+              targetPort: 8080
+          selector:
+            app: $(params.APP_NAME)
+        ---
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          name: $(params.APP_NAME)
+          labels:
+            app: $(params.APP_NAME)
+        spec:
+          to:
+            kind: Service
+            name: $(params.APP_NAME)
+          port:
+            targetPort: http
+          tls:
+            termination: edge
+            insecureEdgeTerminationPolicy: Redirect
+        EOF
+
+        echo "Manifest created:"
+        cat openshift-eap7/deployment.yaml
+
+    - name: apply-manifests
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "======================================"
+        echo "Deploying to OpenShift"
+        echo "Namespace: $(params.NAMESPACE)"
+        echo "======================================"
+
+        oc project $(params.NAMESPACE)
+
+        echo ""
+        echo "Applying Deployment, Service, Route..."
+        oc apply -f openshift-eap7/deployment.yaml
+
+        echo ""
+        echo "Waiting for rollout..."
+        oc rollout status deployment/$(params.APP_NAME) --timeout=300s
+
+        echo ""
+        echo "======================================"
+        echo "✓ Deployment Completed"
+        echo "======================================"
+
+        ROUTE=$(oc get route $(params.APP_NAME) -o jsonpath='{.spec.host}')
+        echo "Application URL: https://${ROUTE}/"
+{{- end }}
