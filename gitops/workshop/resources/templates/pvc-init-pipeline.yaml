@@ -13,7 +13,7 @@ metadata:
   name: pvc-init
   namespace: {{ $namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "45"
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop
@@ -50,7 +50,7 @@ metadata:
   name: pvc-init-pipeline
   namespace: {{ $namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "45"
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
     app.kubernetes.io/part-of: developer-lightspeed-workshop
@@ -74,7 +74,7 @@ metadata:
   name: pvc-init-auto
   namespace: {{ $namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "50"
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
     argocd.argoproj.io/sync-options: "Replace=true"
   labels:
     app.kubernetes.io/managed-by: openshift-gitops
