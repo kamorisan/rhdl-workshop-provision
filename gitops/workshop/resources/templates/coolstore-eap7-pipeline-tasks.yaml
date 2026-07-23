@@ -325,7 +325,13 @@ spec:
 
         EXPOSE 8080
 
-        CMD ["/opt/eap/bin/standalone.sh", "-b", "0.0.0.0"]
+        # Do not specify CMD - inherit base image's S2I runtime command
+        # Base image CMD executes /usr/local/s2i/run which calls openshift-launch.sh
+        # This ensures proper initialization:
+        # - Placeholder expansion (##CONSOLE-FORMATTER##, etc.)
+        # - Environment variable-based Datasource configuration
+        # - postconfigure.sh execution
+        # - delayedpostconfigure.sh execution
         EOF
 
         echo "Containerfile created:"
