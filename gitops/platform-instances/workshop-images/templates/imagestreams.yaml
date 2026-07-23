@@ -14,6 +14,15 @@ metadata:
 spec:
   lookupPolicy:
     local: false
+  tags:
+    - name: "8.1"
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/jboss-eap-8/eap8-openjdk17-builder-openshift-rhel8:8.1
+      importPolicy:
+        scheduled: true
+      referencePolicy:
+        type: Source
 ---
 # ImageStream for EAP 8.1 Runtime
 apiVersion: image.openshift.io/v1
@@ -30,6 +39,15 @@ metadata:
 spec:
   lookupPolicy:
     local: false
+  tags:
+    - name: "8.1"
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/jboss-eap-8/eap8-openjdk17-runtime-openshift-rhel8:8.1
+      importPolicy:
+        scheduled: true
+      referencePolicy:
+        type: Source
 ---
 # ImageStream for EAP 7.4 ELS
 apiVersion: image.openshift.io/v1
