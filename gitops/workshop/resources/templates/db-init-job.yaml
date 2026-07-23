@@ -34,7 +34,7 @@ spec:
         - /bin/bash
         - -c
         - |
-          set -e
+          set -euo pipefail
           echo "Waiting for PostgreSQL to be ready..."
           until pg_isready -h postgresql -U $POSTGRESQL_USER; do
             echo "PostgreSQL is unavailable - sleeping"
@@ -43,21 +43,100 @@ spec:
 
           echo "PostgreSQL is ready. Initializing database..."
 
-          # Check if already initialized
-          TABLES=$(psql -h postgresql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          echo "Running schema creation (idempotent)..."
+          psql \
+            -v ON_ERROR_STOP=1 \
+            -h postgresql \
+            -U $POSTGRESQL_USER \
+            -d $POSTGRESQL_DATABASE \
+            -f /scripts/V1_1__CreateSchema.sql
 
-          if [ "$TABLES" -gt 0 ]; then
-            echo "Database already initialized. Skipping."
-            exit 0
+          echo "Running initial data insert (idempotent)..."
+          psql \
+            -v ON_ERROR_STOP=1 \
+            -h postgresql \
+            -U $POSTGRESQL_USER \
+            -d $POSTGRESQL_DATABASE \
+            -f /scripts/V1_2__AddInitialData.sql
+
+          echo "Verifying required tables exist..."
+          REQUIRED_TABLES=(
+            inventory
+            product_catalog
+            orders
+            order_items
+          )
+
+          for table_name in "${REQUIRED_TABLES[@]}"; do
+            exists=$(
+              psql \
+                -v ON_ERROR_STOP=1 \
+                -h postgresql \
+                -U $POSTGRESQL_USER \
+                -d $POSTGRESQL_DATABASE \
+                -Atc "SELECT to_regclass('public.${table_name}') IS NOT NULL"
+            )
+
+            if [ "$exists" != "t" ]; then
+              echo "ERROR: Required table is missing: ${table_name}"
+              exit 1
+            fi
+            echo "  ✓ Table ${table_name} exists"
+          done
+
+          echo "Verifying initial data..."
+          product_count=$(
+            psql \
+              -v ON_ERROR_STOP=1 \
+              -h postgresql \
+              -U $POSTGRESQL_USER \
+              -d $POSTGRESQL_DATABASE \
+              -Atc "SELECT COUNT(*) FROM product_catalog"
+          )
+
+          inventory_count=$(
+            psql \
+              -v ON_ERROR_STOP=1 \
+              -h postgresql \
+              -U $POSTGRESQL_USER \
+              -d $POSTGRESQL_DATABASE \
+              -Atc "SELECT COUNT(*) FROM inventory"
+          )
+
+          if [ "$product_count" -lt 9 ]; then
+            echo "ERROR: Expected at least 9 products, found: $product_count"
+            exit 1
           fi
+          echo "  ✓ PRODUCT_CATALOG has $product_count rows"
 
-          echo "Running schema creation..."
-          psql -h postgresql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -f /scripts/V1_1__CreateSchema.sql
+          if [ "$inventory_count" -lt 9 ]; then
+            echo "ERROR: Expected at least 9 inventory items, found: $inventory_count"
+            exit 1
+          fi
+          echo "  ✓ INVENTORY has $inventory_count rows"
 
-          echo "Running initial data insert..."
-          psql -h postgresql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -f /scripts/V1_2__AddInitialData.sql
+          echo "Verifying hibernate_sequence exists..."
+          seq_exists=$(
+            psql \
+              -v ON_ERROR_STOP=1 \
+              -h postgresql \
+              -U $POSTGRESQL_USER \
+              -d $POSTGRESQL_DATABASE \
+              -Atc "SELECT to_regclass('public.hibernate_sequence') IS NOT NULL"
+          )
+
+          if [ "$seq_exists" != "t" ]; then
+            echo "ERROR: hibernate_sequence is missing"
+            exit 1
+          fi
+          echo "  ✓ hibernate_sequence exists"
 
           echo "Database initialization completed successfully!"
+          echo "Summary:"
+          echo "  - All required tables present"
+          echo "  - PRODUCT_CATALOG: $product_count rows"
+          echo "  - INVENTORY: $inventory_count rows"
+          echo "  - Sequence: hibernate_sequence"
         env:
         - name: POSTGRESQL_USER
           valueFrom:

@@ -18,7 +18,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
 data:
   V1_1__CreateSchema.sql: |
-    create table INVENTORY (
+    -- Idempotent schema creation for Coolstore database
+    -- Safe to run multiple times, preserves existing tables and data
+
+    CREATE TABLE IF NOT EXISTS INVENTORY (
         itemId varchar(255) not null,
         link varchar(255),
         location varchar(255),
@@ -26,7 +29,7 @@ data:
         primary key (itemId)
     );
 
-    create table ORDERS (
+    CREATE TABLE IF NOT EXISTS ORDERS (
         orderId int8 not null,
         customerEmail varchar(255),
         customerName varchar(255),
@@ -38,7 +41,7 @@ data:
         primary key (orderId)
     );
 
-    create table ORDER_ITEMS (
+    CREATE TABLE IF NOT EXISTS ORDER_ITEMS (
         ID int8 not null,
         productId varchar(255),
         quantity int4 not null,
@@ -46,7 +49,7 @@ data:
         primary key (ID)
     );
 
-    create table PRODUCT_CATALOG (
+    CREATE TABLE IF NOT EXISTS PRODUCT_CATALOG (
         itemId varchar(255) not null,
         description text,
         name varchar(80),
@@ -54,31 +57,98 @@ data:
         primary key (itemId)
     );
 
-    alter table ORDER_ITEMS
-        add constraint FK2BFF474F65938E8
-        foreign key (ORDER_ID)
-        references ORDERS;
+    -- Add foreign key constraint only if it doesn't exist
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'fk2bff474f65938e8'
+              AND contype = 'f'
+        ) THEN
+            ALTER TABLE ORDER_ITEMS
+                ADD CONSTRAINT FK2BFF474F65938E8
+                FOREIGN KEY (ORDER_ID)
+                REFERENCES ORDERS;
+        END IF;
+    END
+    $$;
 
-    create sequence hibernate_sequence;
+    CREATE SEQUENCE IF NOT EXISTS hibernate_sequence;
 
   V1_2__AddInitialData.sql: |
-    insert into INVENTORY (itemId, link, location, quantity) values ('329299', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 736);
-    insert into INVENTORY (itemId, link, location, quantity) values ('329199', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 512);
-    insert into INVENTORY (itemId, link, location, quantity) values ('165613', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 256);
-    insert into INVENTORY (itemId, link, location, quantity) values ('165614', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 54);
-    insert into INVENTORY (itemId, link, location, quantity) values ('165954', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 87);
-    insert into INVENTORY (itemId, link, location, quantity) values ('444434', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 443);
-    insert into INVENTORY (itemId, link, location, quantity) values ('444435', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 600);
-    insert into INVENTORY (itemId, link, location, quantity) values ('444436', 'http://maps.google.com/?q=Tokyo', 'Tokyo', 230);
-    insert into INVENTORY (itemId, link, location, quantity) values ('444437', 'http://maps.google.com/?q=Tokyo', 'Tokyo', 300);
+    -- Idempotent initial data insertion
+    -- Safe to run multiple times, preserves existing data
 
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('329299', 'Quarkus T-shirt', '', 10.00);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('329199', 'Pronounced Kubernetes', '', 9.00);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('165613', 'Knit socks', '',4.15);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('165614', 'Quarkus H2Go water bottle', '', 14.45);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('165954', 'Patagonia Refugio pack 28L', '', 6.00);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444434', 'Red Hat Impact T-shirt', '', 9.00);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444435', 'Quarkus twill cap', '',13.00 );
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444436', 'Women RHEL 8 t-shirt', '', 10.00);
-    insert into PRODUCT_CATALOG (itemId, name, description, price) values ('444437', 'Nanobloc Universal Webcam Cover', '', 2.75);
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('329299', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 736)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('329199', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 512)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('165613', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 256)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('165614', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 54)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('165954', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 87)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('444434', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 443)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('444435', 'http://maps.google.com/?q=Raleigh', 'Raleigh', 600)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('444436', 'http://maps.google.com/?q=Tokyo', 'Tokyo', 230)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO INVENTORY (itemId, link, location, quantity)
+    VALUES ('444437', 'http://maps.google.com/?q=Tokyo', 'Tokyo', 300)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('329299', 'Quarkus T-shirt', '', 10.00)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('329199', 'Pronounced Kubernetes', '', 9.00)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('165613', 'Knit socks', '', 4.15)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('165614', 'Quarkus H2Go water bottle', '', 14.45)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('165954', 'Patagonia Refugio pack 28L', '', 6.00)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('444434', 'Red Hat Impact T-shirt', '', 9.00)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('444435', 'Quarkus twill cap', '', 13.00)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('444436', 'Women RHEL 8 t-shirt', '', 10.00)
+    ON CONFLICT (itemId) DO NOTHING;
+
+    INSERT INTO PRODUCT_CATALOG (itemId, name, description, price)
+    VALUES ('444437', 'Nanobloc Universal Webcam Cover', '', 2.75)
+    ON CONFLICT (itemId) DO NOTHING;
 {{- end }}
