@@ -1,0 +1,29 @@
+{{- $userCount := .Values.workshop.userCount | int }}
+{{- $usernamePrefix := .Values.workshop.usernamePrefix }}
+{{- range $i := untilStep 1 (add1 $userCount | int) 1 }}
+{{- $id := printf "%02d" $i }}
+{{- $username := printf "%s%s" $usernamePrefix $id }}
+---
+# Grant workshop users edit access to openshift-devspaces namespace
+# Allows users to create, start, stop, and manage their DevSpaces workspaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $username }}-devspaces-edit
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/managed-by: openshift-gitops
+    app.kubernetes.io/part-of: developer-lightspeed-workshop
+    app.kubernetes.io/component: devspaces-access
+    workshop.user: {{ $username }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ $.Values.syncWave }}"
+subjects:
+- kind: User
+  name: {{ $username }}
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: edit
+{{- end }}
