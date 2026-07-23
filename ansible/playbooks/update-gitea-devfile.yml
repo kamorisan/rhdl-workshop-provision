@@ -1,0 +1,51 @@
+---
+- name: Update devfile.yaml in Gitea repositories
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    gitea_route: "{{ lookup('pipe', 'oc get route gitea -n gitea -o jsonpath={.spec.host}') }}"
+    devfile_source: "{{ playbook_dir }}/../../coolstore-eap7/devfile.yaml"
+    user_count: 10
+    username_prefix: "user"
+
+  vars_files:
+    - ../group_vars/vault.yml
+
+  tasks:
+    - name: Check devfile.yaml exists
+      stat:
+        path: "{{ devfile_source }}"
+      register: devfile_stat
+      failed_when: not devfile_stat.stat.exists
+
+    - name: Read devfile.yaml content
+      slurp:
+        src: "{{ devfile_source }}"
+      register: devfile_content
+
+    - name: Update devfile.yaml in each user repository
+      uri:
+        url: "https://{{ gitea_route }}/api/v1/repos/{{ username_prefix }}{{ '%02d' | format(item) }}/coolstore-eap7/contents/devfile.yaml"
+        method: PUT
+        user: "{{ vault_gitea_admin_username }}"
+        password: "{{ vault_gitea_admin_password }}"
+        force_basic_auth: yes
+        body_format: json
+        body:
+          message: "Update devfile.yaml with che-code endpoint"
+          content: "{{ devfile_content.content }}"
+          sha: "{{ lookup('pipe', 'curl -fsS -u ' + vault_gitea_admin_username + ':' + vault_gitea_admin_password + ' https://' + gitea_route + '/api/v1/repos/' + username_prefix + ('%02d' | format(item)) + '/coolstore-eap7/contents/devfile.yaml | jq -r .sha') }}"
+        status_code: [200, 201]
+        validate_certs: no
+      loop: "{{ range(1, user_count + 1) | list }}"
+      register: update_result
+
+    - name: Display summary
+      debug:
+        msg:
+          - "devfile.yaml updated successfully"
+          - "Users: {{ username_prefix }}01 - {{ username_prefix }}{{ '%02d' | format(user_count) }}"
+          - "File: devfile.yaml"
+          - "Change: Added che-code endpoint (port 3100)"
