@@ -155,12 +155,13 @@ customize_for_user() {
     # Remove existing Git metadata
     rm -rf .git
 
-    # Replace namespace in scripts
+    # Replace namespace in scripts and deployment files
     log "  - Updating PROJECT_NAME to ${user_namespace}"
     sed -i.bak "s|user01-dev|${user_namespace}|g" \
         scripts/openshift/eap7/01-setup.sh \
         scripts/openshift/eap7/02-build.sh \
-        scripts/openshift/eap7/03-deploy.sh
+        scripts/openshift/eap7/03-deploy.sh \
+        openshift/deployment.yaml
 
     # Replace Git repository URL in scripts
     log "  - Updating GIT_REPOSITORY to ${user_git_url}"
