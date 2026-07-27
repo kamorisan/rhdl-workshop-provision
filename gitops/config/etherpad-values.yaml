@@ -1,0 +1,45 @@
+# Etherpad Configuration Values for Developer Lightspeed Workshop
+
+namespace: etherpad
+
+etherpad:
+  name: etherpad
+  image: quay.io/wkulhanek/etherpad:1.8.4
+  replicas: 1
+
+  # Admin credentials
+  # Change this password in production!
+  adminPassword: "workshop2024!"
+
+  # Resource allocation
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+postgresql:
+  enabled: true
+  version: "13"
+
+  # Database configuration
+  database: etherpad
+  username: ether
+  password: "etherpad123!"
+
+  # Storage
+  volumeCapacity: 10Gi
+
+  # Resource allocation
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ArgoCD sync wave
+syncWave: "30"

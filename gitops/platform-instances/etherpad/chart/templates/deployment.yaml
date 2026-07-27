@@ -1,0 +1,88 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.etherpad.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.etherpad.name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ add (.Values.syncWave | int) 10 }}"
+spec:
+  replicas: {{ .Values.etherpad.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.etherpad.name }}
+      deploymentconfig: {{ .Values.etherpad.name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.etherpad.name }}
+        deploymentconfig: {{ .Values.etherpad.name }}
+    spec:
+      containers:
+        - name: {{ .Values.etherpad.name }}
+          image: {{ .Values.etherpad.image }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9001
+              protocol: TCP
+          env:
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_HOST
+              value: postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_DATABASE
+              value: {{ .Values.postgresql.database }}
+            - name: DB_USER
+              value: {{ .Values.postgresql.username }}
+            - name: DB_PASS
+              value: {{ .Values.postgresql.password }}
+            - name: NODE_ENV
+              value: production
+            - name: ADMIN_PASSWORD
+              value: {{ .Values.etherpad.adminPassword }}
+          resources:
+            requests:
+              cpu: {{ .Values.etherpad.resources.requests.cpu }}
+              memory: {{ .Values.etherpad.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.etherpad.resources.limits.cpu }}
+              memory: {{ .Values.etherpad.resources.limits.memory }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9001
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          volumeMounts:
+            - name: {{ .Values.etherpad.name }}-settings
+              mountPath: /opt/etherpad/config
+      volumes:
+        - name: {{ .Values.etherpad.name }}-settings
+          configMap:
+            name: {{ .Values.etherpad.name }}-settings
+            defaultMode: 420
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

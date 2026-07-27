@@ -7,3 +7,4 @@ resources:
   - mta/tackle.yaml
   - gitea/application.yaml
   - workshop-images/application.yaml
+  - etherpad/application.yaml

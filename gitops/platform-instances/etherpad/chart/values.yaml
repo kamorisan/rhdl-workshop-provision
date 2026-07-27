@@ -1,0 +1,42 @@
+# Default values for etherpad chart
+# These can be overridden in etherpad-values.yaml
+
+namespace: etherpad
+
+etherpad:
+  name: etherpad
+  image: quay.io/wkulhanek/etherpad:1.8.4
+  replicas: 1
+  adminPassword: secret
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+postgresql:
+  enabled: true
+  version: "13"
+
+  # Database credentials
+  database: etherpad
+  username: ether
+  password: ether
+
+  # Storage
+  volumeCapacity: 10Gi
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+syncWave: "30"

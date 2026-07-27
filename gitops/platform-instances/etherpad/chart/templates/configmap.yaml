@@ -1,0 +1,113 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.etherpad.name }}-settings
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.etherpad.name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ .Values.syncWave }}"
+data:
+  settings.json: |
+    {
+      "title": "Developer Lightspeed Workshop Etherpad",
+      "favicon": "favicon.ico",
+      "skinName": "colibris",
+      "skinVariants": "light-toolbar dark-background light-editor full-width-editor",
+      "ip": "0.0.0.0",
+      "port": 9001,
+      "showSettingsInAdminPage": true,
+      "dbType": "postgres",
+      "dbSettings": {
+        "host": "postgresql",
+        "port": "5432",
+        "database": "{{ .Values.postgresql.database }}",
+        "user": "{{ .Values.postgresql.username }}",
+        "password": "{{ .Values.postgresql.password }}"
+      },
+      "defaultPadText": "Welcome to the Developer Lightspeed Workshop Etherpad!\n\nThis pad text is synchronized as you type, so that everyone viewing this page sees the same text. This allows you to collaborate seamlessly on documents!\n",
+      "padOptions": {
+        "noColors": false,
+        "showControls": true,
+        "showChat": true,
+        "showLineNumbers": true,
+        "useMonospaceFont": false,
+        "userName": false,
+        "userColor": false,
+        "rtl": false,
+        "alwaysShowChat": false,
+        "chatAndUsers": false,
+        "lang": "en-us"
+      },
+      "padShortcutEnabled": {
+        "altF9": true,
+        "altC": true,
+        "cmdShift2": true,
+        "delete": true,
+        "return": true,
+        "esc": true,
+        "cmdS": true,
+        "tab": true,
+        "cmdZ": true,
+        "cmdY": true,
+        "cmdI": true,
+        "cmdB": true,
+        "cmdU": true,
+        "cmd5": true,
+        "cmdShiftL": true,
+        "cmdShiftN": true,
+        "cmdShift1": true,
+        "cmdShiftC": true,
+        "cmdH": true,
+        "ctrlHome": true,
+        "pageUp": true,
+        "pageDown": true
+      },
+      "suppressErrorsInPadText": false,
+      "requireSession": false,
+      "editOnly": false,
+      "sessionNoPassword": false,
+      "minify": true,
+      "maxAge": 21600,
+      "abiword": null,
+      "soffice": null,
+      "tidyHtml": null,
+      "allowUnknownFileEnds": true,
+      "requireAuthentication": false,
+      "requireAuthorization": false,
+      "trustProxy": false,
+      "disableIPlogging": false,
+      "automaticReconnectionTimeout": 0,
+      "scrollWhenFocusLineIsOutOfViewport": {
+        "percentage": {
+          "editionAboveViewport": 0,
+          "editionBelowViewport": 0
+        },
+        "duration": 0,
+        "scrollWhenCaretIsInTheLastLineOfViewport": false,
+        "percentageToScrollWhenUserPressesArrowUp": 0
+      },
+      "users": {
+        "admin": {
+          "password": "{{ .Values.etherpad.adminPassword }}",
+          "is_admin": true
+        }
+      },
+      "socketTransportProtocols": ["xhr-polling", "jsonp-polling", "htmlfile"],
+      "loadTest": false,
+      "importExportRateLimiting": {
+        "windowMs": 90000,
+        "max": 10
+      },
+      "importMaxFileSize": 52428800,
+      "exposeVersion": false,
+      "loglevel": "INFO",
+      "logconfig": {
+        "appenders": [
+          {
+            "type": "console"
+          }
+        ]
+      }
+    }

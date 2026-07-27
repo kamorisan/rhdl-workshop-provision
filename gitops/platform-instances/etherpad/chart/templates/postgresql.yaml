@@ -1,0 +1,129 @@
+{{- if .Values.postgresql.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: etherpad_db
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ .Values.syncWave }}"
+type: Opaque
+stringData:
+  database-name: {{ .Values.postgresql.database }}
+  database-user: {{ .Values.postgresql.username }}
+  database-password: {{ .Values.postgresql.password }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: etherpad_db
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ .Values.syncWave }}"
+spec:
+  ports:
+    - name: postgresql
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    app: etherpad_db
+    deploymentconfig: postgresql
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: etherpad_db
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ .Values.syncWave }}"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.volumeCapacity }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: etherpad_db
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ add (.Values.syncWave | int) 5 }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etherpad_db
+      deploymentconfig: postgresql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: etherpad_db
+        deploymentconfig: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: registry.redhat.io/rhel8/postgresql-{{ .Values.postgresql.version }}:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: database-user
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: database-password
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: database-name
+          resources:
+            requests:
+              cpu: {{ .Values.postgresql.resources.requests.cpu }}
+              memory: {{ .Values.postgresql.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.postgresql.resources.limits.cpu }}
+              memory: {{ .Values.postgresql.resources.limits.memory }}
+          livenessProbe:
+            exec:
+              command:
+                - /usr/libexec/check-container
+                - --live
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /usr/libexec/check-container
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/pgsql/data
+      volumes:
+        - name: postgresql-data
+          persistentVolumeClaim:
+            claimName: postgresql
+{{- end }}
