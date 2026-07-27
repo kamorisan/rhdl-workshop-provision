@@ -17,7 +17,7 @@ spec:
         - ../../../config/etherpad-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: etherpad
+    namespace: '*'
   syncPolicy:
     automated:
       prune: true
