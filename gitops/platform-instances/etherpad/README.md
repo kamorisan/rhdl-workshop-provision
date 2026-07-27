@@ -59,10 +59,10 @@ Configuration is managed in `gitops/config/etherpad-values.yaml`:
 
 ```yaml
 etherpad:
-  adminPassword: "workshop2024!"  # Change in production!
+  adminPassword: "workshop2024!"  # Change in production! # notsecret
   
 postgresql:
-  password: "etherpad123!"        # Change in production!
+  password: "etherpad123!"        # Change in production! # notsecret
 ```
 
 ### Important Settings

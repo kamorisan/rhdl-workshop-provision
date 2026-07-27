@@ -9,7 +9,7 @@ etherpad:
 
   # Admin credentials
   # Change this password in production!
-  adminPassword: "workshop2024!"
+  adminPassword: "workshop2024!" # notsecret
 
   # Resource allocation
   resources:
@@ -27,7 +27,7 @@ postgresql:
   # Database configuration
   database: etherpad
   username: ether
-  password: "etherpad123!"
+  password: "etherpad123!" # notsecret
 
   # Storage
   volumeCapacity: 10Gi
