@@ -1,0 +1,13 @@
+APIキー
+sk-k6yUFWReBsfsLzDmPWFn9w
+
+# Using your secure LiteLLM API key
+curl -X POST https://maas-rhdp.apps.maas.redhatworkshops.io/v1/chat/completions \
+  -H "Authorization: Bearer sk-k6yUFWReBsfsLzDmPWFn9w" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-oss-120b",
+    "messages": [
+      {"role": "user", "content": "Hello, world!"}
+    ]
+  }'

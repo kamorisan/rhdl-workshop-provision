@@ -12,7 +12,7 @@ gitea:
   baseUrl: https://gitea-gitea.apps.cluster-jxznt.jxznt.sandbox3409.opentlc.com
 
 workshop:
-  userCount: 10
+  userCount: 15
   usernamePrefix: user
   namespaceSuffix: -dev
 

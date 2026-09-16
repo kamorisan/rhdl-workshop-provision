@@ -1,0 +1,59 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitea-coolstore-populate
+  namespace: gitea
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "10"  # After user provisioning (wave 0)
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600  # Keep for 1 hour for debugging
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitea-coolstore-populate
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: populate-coolstore
+          image: registry.redhat.io/openshift4/ose-cli:latest
+          command:
+            - /bin/bash
+            - /scripts/populate-coolstore.sh
+          env:
+            - name: GITEA_URL
+              value: http://gitea-http.gitea.svc.cluster.local:3000
+            - name: GITEA_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-user-provisioning
+                  key: admin-username
+            - name: GITEA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-user-provisioning
+                  key: admin-password
+            - name: SOURCE_REPO
+              value: https://github.com/kamorisan/coolstore-eap7.git
+            - name: SOURCE_BRANCH
+              value: ocp-s2i-eap7
+            - name: USER_COUNT
+              value: "10"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: gitea-coolstore-populate-script
+            defaultMode: 0755
