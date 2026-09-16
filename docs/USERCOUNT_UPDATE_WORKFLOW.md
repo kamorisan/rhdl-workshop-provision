@@ -162,6 +162,51 @@ oc get namespaces | grep -E "user.*-dev" | sort
 
 ---
 
+### Step 4: HTPasswdユーザー作成
+
+全ユーザー（user01-15）でOpenShiftコンソールにログインできるように、HTPasswd認証を設定します。
+
+```bash
+# 1. HTPasswdファイル作成
+cd /tmp
+htpasswd -bBc workshop-htpasswd user01 openshift
+
+# 2. 残りのユーザーを追加
+for i in {02..15}; do
+  htpasswd -bB workshop-htpasswd user${i} openshift
+done
+
+# 3. OpenShift Secretを作成
+oc create secret generic workshop-htpasswd \
+  --from-file=htpasswd=/tmp/workshop-htpasswd \
+  -n openshift-config \
+  --dry-run=client -o yaml | oc apply -f -
+
+# 4. OAuth Deployment再起動（新しいsecretを読み込む）
+oc rollout restart deployment/oauth-openshift -n openshift-authentication
+
+# 5. Rollout完了待機
+oc rollout status deployment/oauth-openshift -n openshift-authentication --timeout=180s
+```
+
+**確認:**
+```bash
+# HTPasswd secret確認
+oc get secret workshop-htpasswd -n openshift-config
+
+# OAuth設定確認
+oc get oauth cluster -o yaml | grep -A 5 identityProviders
+
+# テストログイン
+oc login --username=user01 --password=openshift $(oc whoami --show-server) --insecure-skip-tls-verify=true
+```
+
+**注意:**
+- 既存ユーザー（user01-10）のパスワードも再設定されます
+- ユーザーがログイン中の場合、トークンは無効化されません（新規ログイン時に新しいパスワードが必要）
+
+---
+
 ### Step 5: 追加ユーザーのセットアップ
 
 新規ユーザー（例: user11-15）に対して、以下のセットアップを実施します。
@@ -249,6 +294,40 @@ export GITEA_URL="https://gitea-gitea.apps.cluster-XXXXX.XXXXX.sandboxYYYY.opent
 
 ---
 
+#### 5.4 DevWorkspace作成
+
+```bash
+cd /path/to/workshop-provisioning/scripts/workspace
+
+# 環境変数設定
+export USER_COUNT=15  # 新しいuserCount
+
+# DevWorkspace一括作成（権限設定、che-codeテンプレート、DevWorkspace作成）
+./setup-all-workspaces.sh
+```
+
+**処理内容:**
+- **Step 1/3**: ユーザー権限設定（view/edit role付与）
+- **Step 2/3**: che-codeテンプレート作成（各user-devspaces namespace）
+- **Step 3/3**: DevWorkspace CR作成（coolstore-modernization-workshop）
+
+**確認:**
+```bash
+# 全ユーザーのDevWorkspace確認
+for i in {01..15}; do
+  echo -n "user${i}: "
+  oc get devworkspace -n user${i}-devspaces --no-headers | awk '{print $1}'
+done
+
+# 期待値: 全ユーザーで "coolstore-modernization-workshop" が表示される
+```
+
+**注意:**
+- このスクリプトは既存のDevWorkspaceを削除して再作成します
+- ユーザーがWorkspaceを起動中の場合は停止してから実行してください
+
+---
+
 ## 📊 検証チェックリスト
 
 ### ✅ 環境確認
@@ -286,6 +365,24 @@ for i in $(seq -f "%02g" 1 $USER_COUNT); do
     secret_count=$((secret_count + 1))
 done
 echo "Git secrets: ${secret_count}/${USER_COUNT}"
+
+# 6. DevWorkspace確認
+devworkspace_count=0
+for i in $(seq -f "%02g" 1 $USER_COUNT); do
+  oc get devworkspace coolstore-modernization-workshop -n user${i}-devspaces >/dev/null 2>&1 && \
+    devworkspace_count=$((devworkspace_count + 1))
+done
+echo "DevWorkspaces: ${devworkspace_count}/${USER_COUNT}"
+
+# 7. HTPasswdログイン確認
+echo "Testing HTPasswd login for user01 and user15..."
+oc login --username=user01 --password=openshift $(oc whoami --show-server) --insecure-skip-tls-verify=true >/dev/null 2>&1 && \
+  echo "user01 login: ✓" || echo "user01 login: ✗"
+oc login --username=user15 --password=openshift $(oc whoami --show-server) --insecure-skip-tls-verify=true >/dev/null 2>&1 && \
+  echo "user15 login: ✓" || echo "user15 login: ✗"
+
+# 管理者に戻る
+kubectl config use-context $(kubectl config get-contexts -o name | grep jxznt | grep admin | head -1) >/dev/null 2>&1
 ```
 
 ---
@@ -426,12 +523,14 @@ Argo CDの`prune: true`設定により、user11-15のnamespaceは自動的に削
 3. ✅ GitHubへpush
 4. ✅ Argo CDの自動sync待機（または手動refresh）
 5. ✅ 新規Namespace作成確認
-6. ✅ Giteaユーザー作成
-7. ✅ Git secrets作成
-8. ✅ リポジトリ配布
-9. ✅ 検証
+6. ✅ HTPasswdユーザー作成（全ユーザーでOpenShiftコンソールログイン可能に）
+7. ✅ Giteaユーザー作成
+8. ✅ Git secrets作成
+9. ✅ リポジトリ配布
+10. ✅ DevWorkspace作成（権限設定、che-codeテンプレート、DevWorkspace CR）
+11. ✅ 検証
 
-**所要時間:** 約15-20分（Argo CD sync含む）
+**所要時間:** 約25-30分（Argo CD sync + HTPasswd作成 + DevWorkspace作成含む）
 
 ---
 
