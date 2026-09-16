@@ -43,7 +43,7 @@ metadata:
   labels:
     app: etherpad_db
   annotations:
-    argocd.argoproj.io/sync-wave: "{{ .Values.syncWave }}"
+    argocd.argoproj.io/sync-wave: "{{ add (.Values.syncWave | int) 5 }}"
 spec:
   accessModes:
     - ReadWriteOnce
