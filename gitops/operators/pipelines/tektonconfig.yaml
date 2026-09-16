@@ -1,0 +1,66 @@
+---
+# TektonConfig CR - Customize Tekton Pipelines feature flags
+# This configuration disables affinity-assistant (coschedule) to avoid
+# scheduling issues when TaskRun pods require specific node affinity.
+apiVersion: operator.tekton.dev/v1alpha1
+kind: TektonConfig
+metadata:
+  name: config
+  annotations:
+    argocd.argoproj.io/sync-wave: "-60"
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  # Pipeline configuration
+  pipeline:
+    # Disable affinity assistant (coschedule) to prevent scheduling issues
+    # Default: "workspaces" - schedules all tasks using same workspace on same node
+    # Setting: "disabled" - allows tasks to be scheduled independently
+    #
+    # Reason for disabling:
+    # - Affinity assistant can cause TaskRun pods to fail scheduling when:
+    #   1. The affinity-assistant pod itself fails to start
+    #   2. PVCs have strict node affinity that conflicts with pod affinity
+    #   3. Cluster has limited worker nodes
+    # - For RWO PVCs, Kubernetes already ensures pod-to-node affinity
+    # - Workshop environment works better with independent scheduling
+    coschedule: disabled
+
+    # Other important pipeline configurations
+    enable-api-fields: beta
+    enable-custom-tasks: true
+    enable-step-actions: true
+    default-service-account: pipeline
+
+    # Disable credential initialization for better performance
+    disable-creds-init: false
+
+    # Results configuration
+    results-from: termination-message
+    max-result-size: 4096
+
+    # Security context (disabled for OpenShift SCC compatibility)
+    set-security-context: false
+
+    # Running in environment with injected sidecars (e.g., service mesh)
+    running-in-environment-with-injected-sidecars: true
+
+    # Performance settings
+    performance:
+      disable-ha: false
+
+    # Metrics
+    params:
+      - name: enableMetrics
+        value: "true"
+
+  # Addon configuration (Resolvers, Hub Tasks, etc.)
+  addon:
+    params:
+      - name: communityResolverTasks
+        value: "true"
+      - name: pipelineTemplates
+        value: "true"
+      - name: resolverTasks
+        value: "true"
+      - name: resolverStepActions
+        value: "true"

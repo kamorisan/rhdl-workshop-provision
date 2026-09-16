@@ -4,3 +4,4 @@ kind: Kustomization
 
 resources:
   - subscription.yaml
+  - tektonconfig.yaml
