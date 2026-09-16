@@ -1104,6 +1104,18 @@ oc exec -n user01-devspaces "$POD" -c dev-tools -- bash /projects/coolstore-eap7
 
 ## 📚 関連ドキュメント
 
+### 運用・手順書
+
+1. **[ユーザー数変更ワークフロー](./USERCOUNT_UPDATE_WORKFLOW.md)** - workshop userCount変更手順（10→15など）
+2. **[OPERATIONS.md](./OPERATIONS.md)** - 運用手順（ユーザー追加・削除、バックアップ等）
+3. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - トラブルシューティングガイド
+
+### 実際のデプロイ作業ログ
+
+- **[デプロイ作業ログ 2026-09-16](./DEPLOYMENT_LOG_2026-09-16.md)** - クリーンアップから再構築までの完全作業記録（userCount 10→15への変更含む）
+
+### 技術資料
+
 - [coolstore-eap7環境固有値分析](../! miscellaneous/coolstore-eap7-environment-specific-values.md)
 - [Gitea GitOps実装ガイド](../! miscellaneous/gitea-gitops-implementation-guide.md)
 - [Gitea SCC問題解決レポート](../! miscellaneous/20260718_gitea-openshift-scc-troubleshooting-report.md)
